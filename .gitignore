@@ -1,0 +1,48 @@
+# python byte code and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# virtual environments and packging
+.venv/
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ide and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# raw datasets and heavy local caches
+data/raw/
+cache/*.jsonl
+!cache/.gitkeep
+models/weights/
+
+# enviroment secrets
+.env
+.env.local

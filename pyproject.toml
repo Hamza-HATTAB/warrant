@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warrant"
+version = "0.1.0"
+description = "Attributed multi-hop research agent with claim verification and abstention contract"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = {text = "MIT"}
+authors = [
+    {name = "Hamza Hattab", email = "hhamzariadh@gmail.com"}
+]
+# core depedencies for runtime inference and graph execution
+dependencies = [
+    "pydantic>=2.8.0,<3.0.0",
+    "pydantic-settings>=2.4.0",
+    "langgraph>=0.2.20",
+    "langchain-core>=0.3.0",
+    "qdrant-client>=1.10.0",
+    "fastapi>=0.112.0",
+    "uvicorn[standard]>=0.30.0",
+    "sse-starlette>=2.1.0",
+    "flashrank>=0.2.8",
+    "spacy>=3.7.0",
+    "transformers>=4.44.0",
+    "torch>=2.2.0",
+    "datasets>=2.20.0",
+    "httpx>=0.27.0",
+    "scikit-learn>=1.5.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "black>=24.0.0",
+    "ruff>=0.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["warrant*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
