@@ -39,6 +39,7 @@ htmlcov/
 
 # raw datasets and heavy local caches
 data/raw/
+data/*.jsonl
 cache/*.jsonl
 !cache/.gitkeep
 models/weights/

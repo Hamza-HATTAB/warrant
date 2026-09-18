@@ -157,19 +157,74 @@ Every attempt is recorded with its hop index and latency. The agent retains full
 
 ---
 
-## 4. Connection to Your Local Course Materials
+## 4. Connection to Your Local Course Materials & The HOML 8-Step Pipeline
 
-1. **HOML 3rd Edition (Chapter 2 & Appendix A):**
-   - Géron's primary rule: *Isolate the test harness before touching model training or tuning.*
-   - In Phase 1, we isolated `data/hotpotqa_eval_200.json` and established the evaluation corpus *before* configuring retrieval or prompting LLMs.
+### A. Hands-On Machine Learning (HOML 3rd Ed.) — Chapter 2 & Appendix A
 
-2. **Complete Agentic AI Bootcamp (Section 12: LangGraph Components):**
-   - Notebook `2. 4-pydantic.ipynb` illustrates defining strict state schemas.
-   - We translated this into `WarrantState`, ensuring every state transition is typed and validated.
+In [appendix_A_ml_project_checklist.pdf](file:///home/hamza/AI-Learning/Books/HOML/homl_chapters/appendix_A_ml_project_checklist.pdf) and [02_end_to_end_machine_learning_project.pdf](file:///home/hamza/AI-Learning/Books/HOML/homl_chapters/02_end_to_end_machine_learning_project.pdf), Aurélien Géron presents the standard **8-Step Machine Learning Project Checklist**:
 
-3. **Complete DS ML DL NLP Bootcamp (Section 51: NLP for ML):**
-   - Covers sentence boundary detection, tokenization regexes, and text preprocessing.
-   - Reflected directly in our regex protection logic in `warrant/data/span_segmenter.py`.
+1. **Frame the problem and look at the big picture.**
+2. **Get the data.**
+3. **Explore the data to gain insights.**
+4. **Prepare the data to better expose underlying patterns.**
+5. **Explore many different models and shortlist the best ones.**
+6. **Fine-tune models and combine them into a great solution.**
+7. **Present your solution.**
+8. **Launch, monitor, and maintain your system.**
+
+Here is how the Warrant roadmap maps directly onto this 8-step framework:
+
+| HOML Checklist Step | Warrant Project Phase | Exact Implementation in Code |
+| :--- | :--- | :--- |
+| **Step 1: Frame the Problem** | **Phase 1 (Part 1)** | Defining the attribution contract, abstention states (`FULL_PASS`, `PARTIAL_PASS`, `ABSTAIN`), and the 6.5 GB active VRAM budget. |
+| **Step 2: Get the Data** | **Phase 1 (Part 2)** | `warrant/data/ingest_hotpotqa.py`: Automated ingestion of 200 HotpotQA questions and pooling 1,991 Wikipedia articles to lock the evaluation harness. |
+| **Step 3 & 4: Explore & Prepare Data** | **Phase 1 & Phase 2** | `warrant/data/span_segmenter.py`: Sentence splitting with title prefixes (`[Title: X]`), and building the Qdrant hybrid BM25 + dense index. |
+| **Step 5: Explore & Shortlist Models** | **Phase 3 & Phase 4** | Benchmarking local generators (Qwen2.5-7B vs. Gemma-3-12B), CPU FlashRank, and DeBERTa-v3 cross-encoder. |
+| **Step 6: Fine-Tune & Combine Solutions** | **Phase 4 & Phase 5** | Temperature scaling calibration ($\tau$), deterministic entity guard, and LangGraph cyclic state machine. |
+| **Step 7: Present Your Solution** | **Phase 6 & Phase 7** | The Verifier Bake-off, Risk-Coverage curves, Bootstrap 95% CIs, and Next.js full-stack interface. |
+| **Step 8: Launch, Monitor & Maintain** | **Phase 8** | Dockerization (`make reproduce`), cloud deployment on Vercel + Render/Fly.io, and live portfolio CV link. |
+
+In **Phase 1**, we are executing **HOML Step 1** and **HOML Step 2**. Following Géron's rule: *Never touch model prompts or inference before isolating your evaluation set and defining deterministic performance contracts.*
+
+---
+
+### B. Complete Agentic AI Bootcamp — Section 12 (LangGraph Components)
+
+* **Directory:** [12 - LangGraph Components](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/)
+* **Key Notebooks:** `1. 3-DataclassStateSchema.ipynb` and `2. 4-pydantic.ipynb`.
+* **What you practice there:**
+  - Defining `StateSchema` using `TypedDict`, `dataclasses`, and `Pydantic`.
+  - Understanding how LangGraph node functions take `state` as input and return updated partial state dicts.
+* **How Warrant applies this in `warrant/core/schema.py`:**
+  - We use **Pydantic v2 `BaseModel`** rather than a loose `TypedDict` to enforce runtime field validation.
+  - Instead of a naive mutable list that gets overwritten on retry, we implement the **append-only `HopRecord` pattern**:
+    ```python
+    def add_hop(self, hop: HopRecord) -> None:
+        self.hops.append(hop)
+    ```
+  - This directly solves the state mutation amnesia demonstrated in the bootcamp's cyclic graph tutorials.
+
+---
+
+### C. Complete Data Science ML DL NLP Bootcamp 2025
+
+* **Section 11 (OOPS Concepts With Classes And Objects):**
+  - Practices writing clean encapsulation, class properties, and methods.
+  - Applied in `EvidenceSpan.formatted_premise`: using `@computed_field` and `@property` to calculate formatted premises dynamically.
+* **Section 15 (Logging In Python):**
+  - Pipeline traceability and execution timing.
+  - Applied in `HopRecord.latency_ms` and `WarrantState.total_latency_ms` to track hop-by-hop latency waterfalls.
+* **Section 51 (NLP for Machine Learning):**
+  - Regex tokenization, sentence boundaries, and punctuation handling.
+  - Applied in `warrant/data/span_segmenter.py`: regex sentence splitting (`re.split`) with token protection for abbreviations (`Dr.`, `U.S.`, `Prof.`).
+
+---
+
+### D. AI Security & Guardrails Bootcamp
+
+* **Section 06 (Observability With Pydantic Logfire) & Section 07 (Guardrails):**
+  - Enforcing schema validation at pipeline boundaries.
+  - In Warrant, this inspires our **Boolean AND Guard**: before running expensive neural NLI models, Stage 1 runs a deterministic guard checking exact entity and date set containment.
 
 ---
 
