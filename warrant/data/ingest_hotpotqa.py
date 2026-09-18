@@ -39,7 +39,7 @@ def process_and_pool_corpus(records: list[dict[str, Any]]) -> tuple[list[dict[st
             "type": row.get("type", "bridge"),
             "level": row.get("level", "medium"),
             "supporting_facts": [
-                {"title": t, "sent_id": s} 
+                {"title": str(t), "sent_id": int(s)} 
                 for t, s in zip(row["supporting_facts"]["title"], row["supporting_facts"]["sent_id"])
             ]
         }
