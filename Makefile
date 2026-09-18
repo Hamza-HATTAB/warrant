@@ -1,13 +1,14 @@
-PYTHON := /home/hamza/.pyenv/versions/3.11.9/envs/ml/bin/python
-PIP := $(PYTHON) -m pip
-PYTEST := $(PYTHON) -m pytest
+UV := /home/hamza/.local/bin/uv
+PYTHON := $(UV) run python
+PYTEST := $(UV) run pytest
+RUFF := $(UV) run ruff
 
 .PHONY: help install test lint format clean ingest run-api reproduce
 
 help:
 	@echo "Available commands:"
-	@echo "  install    - Install package and dev dependecies"
-	@echo "  test       - Run test suite"
+	@echo "  install    - Install package dependecies via uv"
+	@echo "  test       - Run test suite via uv run"
 	@echo "  lint       - Check code formatting and typing"
 	@echo "  format     - Format source files"
 	@echo "  ingest     - Run HotpotQA ingestion and build local collection"
