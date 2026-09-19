@@ -1,241 +1,124 @@
-# Phase 1 Deep Dive: Problem Framing, Data Pipeline, and Immutable State Architecture
+# Phase 1: Problem Framing, Ingestion, and State Architecture (80/20 Deep Dive)
 
-This document provides a complete, first-principles explanation of Phase 1 of Warrant. It covers the motivation, the tree-based architectural breakdown, all failure modes and edge cases, and the mapping to your course materials.
-
----
-
-## 1. The Core Motivation: The Citation Decoration Trap
-
-In standard industry RAG pipelines, an enterprise prompt typically says:
-> "Answer the user question based on the retrieved documents. Cite your sources."
-
-The LLM emits an answer like:
-> "Christopher Nolan was born in 1970 in London and won an Academy Award for Best Director in 2011 for Inception. [Source: Doc 1]"
-
-If you inspect the actual source text in Doc 1, you will discover:
-1. Nolan was indeed born in London in 1970.
-2. Nolan did direct Inception in 2010.
-3. But Nolan did not win Best Director in 2011 (Tom Hooper won for The King's Speech; Nolan won his first Best Director Oscar in 2024 for Oppenheimer).
-
-The LLM cited the entire document chunk, but 30% of the sentence was a hallucination. The citation is decorative, not verifiable.
-
-Warrant replaces this with an attribution and abstention contract:
-- The agent cannot output ungrounded free text.
-- Generation is decomposed into atomic claims.
-- Each claim must cite explicit sentence-level span IDs.
-- A dual-stage verifier independently verifies each claim against cited evidence.
-- A 3-state policy decides whether to pass, prune, or abstain.
+This document explains Phase 1 from absolute first principles using the 80/20 rule: focusing on the 20% of foundational concepts that generate 80% of runtime reliability and engineering clarity.
 
 ---
 
-## 2. Tree-Based Architectural Breakdown of Phase 1
+## 1. What is Pydantic? (From Scratch)
 
-```
-WARRANT Phase 1 Foundation
-│
-├── 1. Data Ingestion & Corpus Engineering
-│   ├── 1.1 HotpotQA Distractor Dataset (200 Multi-Hop Questions)
-│   │   ├── Bridge questions (Entity A -> Entity B -> Answer)
-│   │   └── Comparison questions (Comparing properties of Entity A & B)
-│   │
-│   ├── 1.2 Corpus Pooling (Moving from Toy Benchmark to Real World)
-│   │   ├── Toy Setting: Searching 10 isolated paragraphs per question
-│   │   └── Pooled Setting: 1,991 unique Wikipedia articles in a shared space
-│   │
-│   └── 1.3 Sentence-Level Span Segmentation
-│       ├── Abbreviation-safe sentence splitting (Dr., U.S., e.g.)
-│       ├── Deterministic slugified ID generation (span_title_idx)
-│       └── Title-context prefixing: "[Title: X] Body..."
-│
-├── 2. Agent State Architecture (Pydantic v2 & LangGraph)
-│   ├── 2.1 The Append-Only Timeline (`hops: list[HopRecord]`)
-│   │   ├── Preserves query decomposition history
-│   │   ├── Tracks latency and retrieved span IDs per hop
-│   │   └── Prevents cyclic overwriting and infinite retry loops
-│   │
-│   ├── 2.2 Global Evidence Pool (`evidence_pool: dict[str, EvidenceSpan]`)
-│   │   ├── Single source of truth indexed by span ID
-│   │   └── Prevents duplicate text storage across hops
-│   │
-│   ├── 2.3 The Atomic Claim Schema (`AtomicClaim`)
-│   │   ├── Text of single factual assertion
-│   │   ├── List of cited span IDs (1 to 3 spans)
-│   │   ├── Entity guard status (Boolean pass/fail)
-│   │   └── Calibrated NLI entailment score
-│   │
-│   └── 2.4 The 3-State Decision Policy (`PolicyState`)
-│       ├── FULL_PASS: 100% of claims verified
-│       ├── PARTIAL_PASS: Prune unverified assertions, emit verified core
-│       └── ABSTAIN: Contradiction detected or critical evidence missing
-│
-└── 3. Edge Cases & Failure Modes (Handled in Phase 1)
-    ├── Case A: Coreference & Pronoun Amnesia
-    ├── Case B: Cyclic Search Amnesia
-    ├── Case C: Compound Sentence Entailment Failure
-    └── Case D: Distractor Ambiguity in Dense Space
-```
+In standard Python, variables and dictionaries have **zero type enforcement** at runtime:
 
----
-
-## 3. Deep Dive: Branch by Branch
-
-### Branch 1: Data Ingestion & Corpus Engineering
-
-#### Why HotpotQA?
-HotpotQA is specifically designed for multi-hop reasoning. Answering a query requires hopping between multiple Wikipedia articles.
-Example:
-> "Were Scott Derrickson and Ed Wood of the same nationality?"
-To answer this, an agent must:
-- Hop 1: Retrieve the article for Scott Derrickson (learns he is American).
-- Hop 2: Retrieve the article for Ed Wood (learns he is American).
-- Synthesis: Compare the two nationalities and confirm: "Yes, both are American."
-
-#### The Corpus Pooling Transformation
-In the raw HotpotQA release, each question is bundled with 10 paragraphs (2 gold, 8 distractors).
-If you evaluate a retriever on only those 10 paragraphs, the task is trivial. Any keyword search gets over 95% recall.
-
-In `warrant/data/ingest_hotpotqa.py`, we extract all paragraphs across the 200 questions and pool them into a global dictionary. 
-- Result: **1,991 unique Wikipedia articles** yielding **8,535 sentence spans**.
-- Now, when the retriever runs in Phase 2, it must locate the true bridge articles among thousands of candidates.
-
-#### Span Segmentation & Title Context Prefixing
-If you split Wikipedia articles into raw sentences, you run into pronoun resolution failures:
-- Raw Sentence 0: "Christopher Nolan is a British-American film director."
-- Raw Sentence 1: "He was born in London on July 30, 1970."
-
-If the agent cites Sentence 1 as evidence for "Christopher Nolan was born in 1970", an NLI model (DeBERTa) reading only Sentence 1 will reject it because "He" could refer to anyone.
-
-In `warrant/data/span_segmenter.py`, we implement the Title Prefixing invariant:
 ```python
-@computed_field
-@property
-def formatted_premise(self) -> str:
-    return f"[Title: {self.article_title}] {self.text.strip()}"
+# The Standard Python Problem
+doc = {"title": "Inception", "year": "2010", "score": "high"}
+
+# Python permits typos and incorrect types silently:
+doc["scores"] = 0.95      # Typo: created a new key "scores" instead of "score"
+doc["year"] = None        # Wrong type: downstream functions crash later with TypeError
 ```
-Sentence 1 becomes:
-`[Title: Christopher Nolan] He was born in London on July 30, 1970.`
-This resolves the pronoun reference without running expensive coreference resolution models.
 
----
+In multi-agent systems, if one node produces unstructured or malformed output, the entire graph fails silently or crashes deep inside an execution loop.
 
-### Branch 2: Agent State Architecture
+### The Pydantic Solution
+**Pydantic** is a data-validation and parsing library. You define a blueprint (a class inheriting from `BaseModel`):
 
-#### Why Pydantic v2?
-In standard Python, agents pass unstructured dictionaries (`state["docs"] = ...`). Dictionaries allow silent schema drift, missing keys, and unexpected mutations.
-Pydantic v2 enforces:
-1. Strict runtime typing.
-2. Field-level validation and defaults.
-3. Sub-millisecond serialization via `pydantic-core` (written in Rust).
-
-#### The Append-Only Timeline vs. Mutable Overwrite
-Consider this failure loop in a naive agent:
-1. User asks: "What college did the director of Interstellar attend?"
-2. Hop 0 retrieves: "Christopher Nolan directed Interstellar."
-3. Hop 1 rewrites sub-query: "Christopher Nolan college" -> Retriever returns poor matches.
-4. If `state["docs"]` was overwritten, Hop 0's findings are erased. The agent now lacks the premise that Nolan directed the film.
-5. In Warrant, `state.hops` is an append-only timeline:
 ```python
-class HopRecord(BaseModel):
-    hop_idx: int
-    sub_query: str
-    retrieved_span_ids: list[str] = Field(default_factory=list)
-    latency_ms: float = 0.0
+from pydantic import BaseModel
+
+class EvidenceSpan(BaseModel):
+    title: str
+    year: int
+    score: float
+
+# Pydantic validates and coerces data at runtime:
+span = EvidenceSpan(title="Inception", year="2010", score=0.95)
+# Result: year is automatically converted from string "2010" to integer 2010.
+# If an invalid type is passed (e.g. score="invalid"), it errors immediately at the boundary.
 ```
-Every attempt is recorded with its hop index and latency. The agent retains full historical context and can perform cycle detection: if Hop 2 attempts the exact same sub-query as Hop 1, the agent aborts and triggers abstention.
+
+In Warrant, every data structure passing through the agent is a strict Pydantic model.
 
 ---
 
-### Branch 3: All Edge Cases and How Phase 1 Resolves Them
+## 2. The Big Picture Tree (Phase 1 80/20 Architecture)
 
-| Edge Case | Description | What Happens Without Warrant | Warrant Phase 1 Solution |
-| :--- | :--- | :--- | :--- |
-| **Edge Case 1: Pronoun Amnesia** | Sentence contains "He/She/It" instead of entity name. | NLI verifier rejects valid evidence due to unknown subject. | `formatted_premise` prepends `[Title: Article]` to every span. |
-| **Edge Case 2: Cyclic Search Amnesia** | A failed retrieval hop triggers a rewrite loop. | State overwrites previous docs, causing infinite retry loops. | Append-only `HopRecord` timeline maintains full flight recorder. |
-| **Edge Case 3: Compound Claim Hallucination** | Sentence has 2 facts: one true, one hallucinated. | Document-level citation masks the fake fact. | Decomposed into `AtomicClaim` objects verified individually. |
-| **Edge Case 4: Distractor Ambiguity** | Multiple articles share similar keywords. | Basic keyword search matches wrong document. | Corpus pooling forces hybrid dense-sparse search in Phase 2. |
-| **Edge Case 5: Abbreviation Over-Splitting** | Sentence splitting on "Dr." or "U.S." breaks sentences. | Evidence spans are fragmented into meaningless fragments. | `split_sentences_robust` protects known abbreviations with placeholders. |
+```
+Phase 1 Foundation
+│
+├── 1. Data Contract (Pydantic v2)
+│    ├── Problem: Python dicts mutate unpredictably and allow silent schema drift.
+│    └── Solution: WarrantState, EvidenceSpan, AtomicClaim, HopRecord enforce strict types.
+│
+├── 2. Memory Contract (Append-Only Timeline)
+│    ├── Problem: Overwriting state causes "search amnesia" during cyclic retries.
+│    └── Solution: Every retrieval is recorded in hops: list[HopRecord] (the flight recorder).
+│
+└── 3. Attribution Contract (Title-Context Spans)
+     ├── Problem: 500-word chunks dilute NLI attention; raw sentences lose pronoun context.
+     └── Solution: [Title: Article] + single sentence = precise, verifiable premise.
+```
 
 ---
 
-## 4. Connection to Your Local Course Materials & The HOML 8-Step Pipeline
+## 3. Contrastive Analysis: Bad Practice vs. Warrant 80/20
 
-### A. Hands-On Machine Learning (HOML 3rd Ed.) — Chapter 2 & Appendix A
-
-In [appendix_A_ml_project_checklist.pdf](file:///home/hamza/AI-Learning/Books/HOML/homl_chapters/appendix_A_ml_project_checklist.pdf) and [02_end_to_end_machine_learning_project.pdf](file:///home/hamza/AI-Learning/Books/HOML/homl_chapters/02_end_to_end_machine_learning_project.pdf), Aurélien Géron presents the standard **8-Step Machine Learning Project Checklist**:
-
-1. **Frame the problem and look at the big picture.**
-2. **Get the data.**
-3. **Explore the data to gain insights.**
-4. **Prepare the data to better expose underlying patterns.**
-5. **Explore many different models and shortlist the best ones.**
-6. **Fine-tune models and combine them into a great solution.**
-7. **Present your solution.**
-8. **Launch, monitor, and maintain your system.**
-
-Here is how the Warrant roadmap maps directly onto this 8-step framework:
-
-| HOML Checklist Step | Warrant Project Phase | Exact Implementation in Code |
+| Architectural Layer | The Naive Way (Fails in Production) | The Warrant 80/20 Way (Enterprise Grade) |
 | :--- | :--- | :--- |
-| **Step 1: Frame the Problem** | **Phase 1 (Part 1)** | Defining the attribution contract, abstention states (`FULL_PASS`, `PARTIAL_PASS`, `ABSTAIN`), and the 6.5 GB active VRAM budget. |
-| **Step 2: Get the Data** | **Phase 1 (Part 2)** | `warrant/data/ingest_hotpotqa.py`: Automated ingestion of 200 HotpotQA questions and pooling 1,991 Wikipedia articles to lock the evaluation harness. |
-| **Step 3 & 4: Explore & Prepare Data** | **Phase 1 & Phase 2** | `warrant/data/span_segmenter.py`: Sentence splitting with title prefixes (`[Title: X]`), and building the Qdrant hybrid BM25 + dense index. |
-| **Step 5: Explore & Shortlist Models** | **Phase 3 & Phase 4** | Benchmarking local generators (Qwen2.5-7B vs. Gemma-3-12B), CPU FlashRank, and DeBERTa-v3 cross-encoder. |
-| **Step 6: Fine-Tune & Combine Solutions** | **Phase 4 & Phase 5** | Temperature scaling calibration ($\tau$), deterministic entity guard, and LangGraph cyclic state machine. |
-| **Step 7: Present Your Solution** | **Phase 6 & Phase 7** | The Verifier Bake-off, Risk-Coverage curves, Bootstrap 95% CIs, and Next.js full-stack interface. |
-| **Step 8: Launch, Monitor & Maintain** | **Phase 8** | Dockerization (`make reproduce`), cloud deployment on Vercel + Render/Fly.io, and live portfolio CV link. |
-
-In **Phase 1**, we are executing **HOML Step 1** and **HOML Step 2**. Following Géron's rule: *Never touch model prompts or inference before isolating your evaluation set and defining deterministic performance contracts.*
+| **State Management** | `state = {"docs": [...]}` (raw dictionary). No runtime validation, prone to key errors. | `WarrantState(BaseModel)` in `warrant/core/schema.py`. Strict typing and field validation. |
+| **Retrieval History** | `state["docs"] = new_docs`. Overwriting previous hops. Failed retries erase earlier evidence. | `state.hops.append(HopRecord)`. Append-only timeline preserving complete audit history. |
+| **Evidence Granularity**| 500-token chunk cited as `[Doc 1]`. NLI cross-attention is diluted across irrelevant text. | `[Title: X] + Sentence`. Focused 20-word span. Cross-attention is concentrated and calibrated. |
+| **Corpus Pooling** | Querying only the 10 provided paragraphs per HotpotQA item (artificial 95%+ recall). | Pooling 200 questions into 1,991 unique articles (8,535 spans) to test real-world retrieval. |
 
 ---
 
-### B. Complete Agentic AI Bootcamp — Section 12 (LangGraph Components)
+## 4. The 5 Edge Cases Handled in Phase 1
 
-* **Directory:** [12 - LangGraph Components](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/)
-* **Key Notebooks:** [1. 3-DataclassStateSchema.ipynb](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/1.%203-DataclassStateSchema.ipynb) and [2. 4-pydantic.ipynb](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/2.%204-pydantic.ipynb)
-* **What you practice there:**
-  - Defining `StateSchema` using `TypedDict`, `dataclasses`, and `Pydantic`.
-  - Understanding how LangGraph node functions take `state` as input and return updated partial state dicts.
-* **How Warrant applies this in `warrant/core/schema.py`:**
-  - We use **Pydantic v2 `BaseModel`** rather than a loose `TypedDict` to enforce runtime field validation.
-  - Instead of a naive mutable list that gets overwritten on retry, we implement the **append-only `HopRecord` pattern**:
-    ```python
-    def add_hop(self, hop: HopRecord) -> None:
-        self.hops.append(hop)
-    ```
-  - This directly solves the state mutation amnesia demonstrated in the bootcamp's cyclic graph tutorials.
+1. **Pronoun Amnesia:**
+   - *Failure:* Sentence reads *"He directed Inception in 2010."* An NLI model rejects it because the referent for "He" is unknown.
+   - *Fix:* `span.formatted_premise` prepends the article title: `[Title: Christopher Nolan] He directed Inception in 2010.`
+2. **Cyclic Search Amnesia:**
+   - *Failure:* Hop 1 fails. Agent rewrites query. If state is overwritten, Hop 0's evidence is lost.
+   - *Fix:* `hops: list[HopRecord]` tracks every hop index, query, retrieved span list, and latency.
+3. **Compound Claim Hallucination:**
+   - *Failure:* A generated sentence has two facts: one true, one false. Document-level citations hide the lie.
+   - *Fix:* Split into `AtomicClaim` models so each assertion is verified independently.
+4. **Distractor Ambiguity:**
+   - *Failure:* Keyword search matches unrelated articles with identical terms.
+   - *Fix:* Pooled corpus of 1,991 documents forces hybrid dense-sparse retrieval in Phase 2.
+5. **Abbreviation Over-Splitting:**
+   - *Failure:* Standard sentence splitters break on "Dr.", "U.S.", or "Prof.".
+   - *Fix:* `split_sentences_robust` replaces known abbreviations with tokens before regex splitting.
 
 ---
+
+## 5. Direct Course & Resource Cross-References
+
+### A. Agentic AI Bootcamp — Section 12 (LangGraph Components)
+* **Notebooks:** 
+  - [1. 3-DataclassStateSchema.ipynb](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/1.%203-DataclassStateSchema.ipynb)
+  - [2. 4-pydantic.ipynb](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/2.%204-pydantic.ipynb)
+* **Core Takeaway:** LangGraph uses state schemas to control data flow. In `warrant/core/schema.py`, we implemented `WarrantState` to manage state across cyclic retry nodes.
+
+### B. Hands-On Machine Learning (HOML 3rd Ed.) — Chapter 2 & Appendix A
+* **References:**
+  - [appendix_A_ml_project_checklist.pdf](file:///home/hamza/AI-Learning/Books/HOML/homl_chapters/appendix_A_ml_project_checklist.pdf)
+  - [02_end_to_end_machine_learning_project.pdf](file:///home/hamza/AI-Learning/Books/HOML/homl_chapters/02_end_to_end_machine_learning_project.pdf)
+* **Core Takeaway:** The 8-Step ML Checklist dictates:
+  1. *Step 1 (Frame Problem):* Defined attribution contract, abstention states (`FULL_PASS`, `PARTIAL_PASS`, `ABSTAIN`), and 6.5 GB active VRAM ceiling.
+  2. *Step 2 (Get Data):* Ingested 200 HotpotQA questions into `data/hotpotqa_eval_200.json` to lock the evaluation set before running models.
+  3. *Step 3 (Prepare Data):* Segmented 8,535 sentence spans with title context in `data/pooled_corpus_spans.jsonl`.
 
 ### C. Complete Data Science ML DL NLP Bootcamp 2025
-
-* **Section 11 (OOPS Concepts With Classes And Objects):**
-  - Practices writing clean encapsulation, class properties, and methods.
-  - Applied in `EvidenceSpan.formatted_premise`: using `@computed_field` and `@property` to calculate formatted premises dynamically.
-* **Section 15 (Logging In Python):**
-  - Pipeline traceability and execution timing.
-  - Applied in `HopRecord.latency_ms` and `WarrantState.total_latency_ms` to track hop-by-hop latency waterfalls.
-* **Section 51 (NLP for Machine Learning):**
-  - Regex tokenization, sentence boundaries, and punctuation handling.
-  - Applied in `warrant/data/span_segmenter.py`: regex sentence splitting (`re.split`) with token protection for abbreviations (`Dr.`, `U.S.`, `Prof.`).
+* **Section 11 (OOP Concepts):** Class methods and property decorators used in `EvidenceSpan.formatted_premise`.
+* **Section 15 (Logging):** Structured latency tracking via `HopRecord.latency_ms` and `WarrantState.total_latency_ms`.
+* **Section 51 (NLP for ML):** Sentence tokenization, regex handling, and text sanitation.
 
 ---
 
-### D. AI Security & Guardrails Bootcamp
+## 6. Active Recall Validation Quiz
 
-* **Section 06 (Observability With Pydantic Logfire) & Section 07 (Guardrails):**
-  - Enforcing schema validation at pipeline boundaries.
-  - In Warrant, this inspires our **Boolean AND Guard**: before running expensive neural NLI models, Stage 1 runs a deterministic guard checking exact entity and date set containment.
+Answer these 3 questions in your own words to certify Phase 1:
 
----
-
-## 5. Phase 1 Code Verification Summary
-
-All modules implemented for Phase 1 have been tested and verified:
-- `warrant/core/config.py`: Centralized Pydantic settings.
-- `warrant/core/schema.py`: `WarrantState`, `EvidenceSpan`, `AtomicClaim`, `HopRecord`.
-- `warrant/data/span_segmenter.py`: Abbreviation-safe sentence splitter.
-- `warrant/data/ingest_hotpotqa.py`: HotpotQA loader and corpus pooling script.
-- Test Suite: 5/5 unit tests passing in 0.02s (`pytest tests/`).
-- Ingestion Data Artifacts:
-  - `data/hotpotqa_eval_200.json`: 200 evaluation items with gold answers and supporting facts.
-  - `data/pooled_corpus_spans.jsonl`: 8,535 sentence spans across 1,991 unique articles.
+1. **Why do we use Pydantic `BaseModel` instead of standard Python dictionaries for agent state?**
+2. **Why must retrieval hops be stored in an append-only timeline (`hops: list[HopRecord]`) instead of overwriting a single variable?**
+3. **Why does Warrant prepend `[Title: Article]` to each extracted sentence span?**
