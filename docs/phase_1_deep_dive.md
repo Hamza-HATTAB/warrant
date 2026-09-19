@@ -191,7 +191,7 @@ In **Phase 1**, we are executing **HOML Step 1** and **HOML Step 2**. Following 
 ### B. Complete Agentic AI Bootcamp — Section 12 (LangGraph Components)
 
 * **Directory:** [12 - LangGraph Components](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/)
-* **Key Notebooks:** `1. 3-DataclassStateSchema.ipynb` and `2. 4-pydantic.ipynb`.
+* **Key Notebooks:** [1. 3-DataclassStateSchema.ipynb](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/1.%203-DataclassStateSchema.ipynb) and [2. 4-pydantic.ipynb](file:///home/hamza/Courses/Complete_Agentic_AI_Bootcamp/12%20-%20LangGraph%20Components/2.%204-pydantic.ipynb)
 * **What you practice there:**
   - Defining `StateSchema` using `TypedDict`, `dataclasses`, and `Pydantic`.
   - Understanding how LangGraph node functions take `state` as input and return updated partial state dicts.
