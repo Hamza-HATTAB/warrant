@@ -47,3 +47,6 @@ models/weights/
 # enviroment secrets
 .env
 .env.local
+
+# local documentation and progress notes
+docs/
