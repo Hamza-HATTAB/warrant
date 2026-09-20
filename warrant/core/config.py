@@ -8,8 +8,8 @@ class Settings(BaseSettings):
 
     # model endpoints and identifiers
     ollama_base_url: str = "http://localhost:11434"
-    generator_model: str = "qwen2.5:7b-instruct-q4_K_M"
-    fallback_generator_model: str = "gemma3:12b"
+    generator_model: str = "gemma3:12b"
+    fallback_generator_model: str = "qwen2.5:7b-instruct-q4_K_M"
     verifier_model: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
     embedding_model: str = "BAAI/bge-large-en-v1.5"
 
