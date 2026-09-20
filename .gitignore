@@ -16,8 +16,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
+!frontend/lib/
+
 parts/
 sdist/
 var/
@@ -52,3 +54,9 @@ models/weights/
 
 # local documentation and progress notes
 docs/
+
+# node and frontend builds
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
