@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { TopBar } from "../components/TopBar";
-import { QueryInput } from "../components/QueryInput";
-import { PolicyHUD } from "../components/PolicyHUD";
-import { MultiHopTimeline } from "../components/MultiHopTimeline";
-import { ClaimMatrix } from "../components/ClaimMatrix";
-import { EvidenceDrawer } from "../components/EvidenceDrawer";
+import { Navbar } from "../components/Navbar";
+import { QueryBar } from "../components/QueryBar";
+import { PipelineStepper } from "../components/PipelineStepper";
+import { StepInspector } from "../components/StepInspector";
+import { VerificationStudio } from "../components/VerificationStudio";
 import { BenchmarkModal } from "../components/BenchmarkModal";
 import { PRESET_TRAJECTORIES } from "../lib/presets";
 import { PresetTrajectory, WarrantState, SSEEventPayload } from "../lib/types";
@@ -21,15 +20,15 @@ export default function Home() {
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBenchmarkOpen, setIsBenchmarkOpen] = useState<boolean>(false);
+  const [activeStep, setActiveStep] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<"executive" | "telemetry">("executive");
 
   const [warrantState, setWarrantState] = useState<WarrantState | null>(defaultPreset.mockState);
-  const [hoveredClaimId, setHoveredClaimId] = useState<string | null>(null);
-  const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("Ready");
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Check live backend health periodically
+  // Probe live FastAPI backend health periodically
   useEffect(() => {
     let isMounted = true;
     const checkHealth = async () => {
@@ -60,7 +59,8 @@ export default function Home() {
     setSelectedPresetId(preset.id);
     setQuery(preset.query);
     setWarrantState(preset.mockState);
-    setStatusMessage(`Loaded preset: ${preset.title}`);
+    setActiveStep(0);
+    setStatusMessage(`Loaded trajectory: ${preset.title}`);
   };
 
   const handleAbort = () => {
@@ -69,7 +69,7 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     setIsLoading(false);
-    setStatusMessage("Aborted by user.");
+    setStatusMessage("Execution cancelled by user.");
   };
 
   const handleExecute = async () => {
@@ -79,9 +79,10 @@ export default function Home() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsLoading(true);
+    setActiveStep(0);
     setStatusMessage("Initializing multi-hop research pipeline...");
 
-    // Reset current state to empty structure for incoming stream
+    // Initial empty state for incoming stream
     const emptyState: WarrantState = {
       query: query.trim(),
       current_hop: 0,
@@ -92,7 +93,7 @@ export default function Home() {
       refuted_claims: [],
       unverifiable_claims: [],
       policy_decision: "FULL_PASS",
-      policy_reason: "Processing...",
+      policy_reason: "Processing research pipeline...",
       final_answer: "",
       iteration: 1,
       retry_count: 0,
@@ -100,7 +101,7 @@ export default function Home() {
     setWarrantState(emptyState);
 
     const handleEvent = (event: SSEEventPayload) => {
-      setStatusMessage(`DAG Node [${event.node_name || event.event_type}]: Processing...`);
+      setStatusMessage(`Phase [${event.node_name || event.event_type}]: Processing...`);
 
       setWarrantState((prev) => {
         if (!prev) return emptyState;
@@ -152,20 +153,19 @@ export default function Home() {
 
       if (event.event_type === "complete") {
         setIsLoading(false);
-        setStatusMessage("Execution finished. Warranted attribution contract fulfilled.");
+        setStatusMessage("Execution complete. Attributed verification guarantee enforced.");
       }
     };
 
     const handleError = (error: Error) => {
-      console.error("Stream Error:", error);
+      console.error("Pipeline Error:", error);
       setIsLoading(false);
-      setStatusMessage(`Error: ${error.message}. Switching to Demo Mode recommended.`);
+      setStatusMessage(`Error: ${error.message}`);
     };
 
     if (isLiveMode && backendConnected) {
       await streamLiveQuery("http://localhost:8000", query.trim(), handleEvent, handleError, controller.signal);
     } else {
-      // Find matching preset or simulate execution for custom input
       const matchingPreset = PRESET_TRAJECTORIES.find(
         (p) => p.query.toLowerCase().trim() === query.toLowerCase().trim()
       );
@@ -183,19 +183,20 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#080c0a] text-slate-100 pb-16">
-      {/* Top Bar with System Telemetry */}
-      <TopBar
+    <main className="min-h-screen pb-20">
+      {/* Brand Navbar */}
+      <Navbar
         isLiveMode={isLiveMode}
         setIsLiveMode={setIsLiveMode}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
         onOpenBenchmark={() => setIsBenchmarkOpen(true)}
         backendConnected={backendConnected}
       />
 
-      {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8 mt-6 space-y-6">
-        {/* Terminal Query Prompt & Presets */}
-        <QueryInput
+        {/* Search Query Prompt & Preset Trajectories */}
+        <QueryBar
           query={query}
           setQuery={setQuery}
           isLoading={isLoading}
@@ -203,61 +204,50 @@ export default function Home() {
           onAbort={handleAbort}
           onSelectPreset={handleSelectPreset}
           selectedPresetId={selectedPresetId}
-          isLiveMode={isLiveMode}
         />
 
-        {/* Live Status Ticker */}
-        <div className="flex items-center justify-between px-3 py-1.5 rounded bg-panel border border-panel-border text-[11px] font-mono text-slate-400">
+        {/* Live Status Bar */}
+        <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-black/40 border border-slate-800/80 text-xs text-slate-400 font-sans shadow-sm">
           <div className="flex items-center gap-2">
             <span
-              className={`h-2 w-2 rounded-full ${
-                isLoading ? "bg-terminal-green animate-ping" : "bg-slate-600"
+              className={`h-2.5 w-2.5 rounded-full ${
+                isLoading ? "bg-emerald-400 animate-ping" : "bg-emerald-500/60"
               }`}
             />
-            <span className="text-slate-300">{statusMessage}</span>
+            <span className="text-slate-200 font-medium">{statusMessage}</span>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-slate-500">
-            <span>LangGraph Cyclic State Machine</span>
+          <div className="hidden sm:flex items-center gap-3 text-slate-400 font-mono text-[11px]">
+            <span>Gemma 3 12B Unified</span>
             <span>&middot;</span>
-            <span>Qdrant Dense+Sparse RRF</span>
+            <span>Qdrant Hybrid RRF</span>
             <span>&middot;</span>
-            <span>Calibrated DeBERTa-v3</span>
+            <span>DeBERTa-v3 CPU</span>
           </div>
         </div>
 
-        {/* 3-State Policy Contract HUD */}
-        <PolicyHUD state={warrantState} isLoading={isLoading} />
+        {/* Visual 5-Phase Pipeline Stepper */}
+        <PipelineStepper
+          state={warrantState}
+          isLoading={isLoading}
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
+        />
 
-        {/* Two-Column Telemetry & Verification Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: DAG Timeline & Claim Matrix (7 cols) */}
-          <div className="lg:col-span-7 space-y-6">
-            <MultiHopTimeline
-              currentHop={warrantState?.current_hop || 1}
-              maxHops={warrantState?.max_hops || 2}
-              spans={warrantState?.retrieved_spans || []}
-              isLoading={isLoading}
-            />
+        {/* Educational Deep Dive Drawer (Appears when user clicks any step) */}
+        {activeStep > 0 && (
+          <StepInspector
+            stepNumber={activeStep}
+            onClose={() => setActiveStep(0)}
+            state={warrantState}
+          />
+        )}
 
-            <ClaimMatrix
-              claims={warrantState?.synthetic_claims || []}
-              hoveredClaimId={hoveredClaimId}
-              setHoveredClaimId={setHoveredClaimId}
-              selectedClaimId={selectedClaimId}
-              setSelectedClaimId={setSelectedClaimId}
-            />
-          </div>
-
-          {/* Right Column: Grounded Evidence Drawer (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-            <EvidenceDrawer
-              spans={warrantState?.retrieved_spans || []}
-              claims={warrantState?.synthetic_claims || []}
-              hoveredClaimId={hoveredClaimId}
-              selectedClaimId={selectedClaimId}
-            />
-          </div>
-        </div>
+        {/* The Split-Screen Verification Studio (Core Experience) */}
+        <VerificationStudio
+          state={warrantState}
+          isLoading={isLoading}
+          viewMode={viewMode}
+        />
       </div>
 
       {/* Verifier Bake-Off Modal */}
