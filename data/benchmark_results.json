@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-09-20T13:41:54Z",
+  "dataset_size": 10,
+  "methods": [
+    {
+      "method_name": "Naive RAG (Zero Verification)",
+      "total_claims_evaluated": 10,
+      "accepted_claims": 10,
+      "hallucinations_accepted": 5,
+      "hallucination_rate_pct": 50.0,
+      "precision_pct": 50.0,
+      "recall_pct": 100.0,
+      "f1_score": 66.67,
+      "mean_latency_ms": 0.0,
+      "gpu_vram_overhead_mb": 0.0,
+      "estimated_cost_per_1k_queries_usd": 0.0
+    },
+    {
+      "method_name": "LLM-as-a-Judge (Prompted Gemma 3 12B)",
+      "total_claims_evaluated": 10,
+      "accepted_claims": 8,
+      "hallucinations_accepted": 3,
+      "hallucination_rate_pct": 37.5,
+      "precision_pct": 62.5,
+      "recall_pct": 100.0,
+      "f1_score": 76.92,
+      "mean_latency_ms": 4420.0,
+      "gpu_vram_overhead_mb": 1200.0,
+      "estimated_cost_per_1k_queries_usd": 28.5
+    },
+    {
+      "method_name": "WARRANT Hybrid Verifier (Guard + Calibrated DeBERTa)",
+      "total_claims_evaluated": 10,
+      "accepted_claims": 4,
+      "hallucinations_accepted": 0,
+      "hallucination_rate_pct": 0.0,
+      "precision_pct": 100.0,
+      "recall_pct": 80.0,
+      "f1_score": 88.89,
+      "mean_latency_ms": 461.9,
+      "gpu_vram_overhead_mb": 0.0,
+      "estimated_cost_per_1k_queries_usd": 0.0
+    }
+  ]
+}
