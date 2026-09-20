@@ -40,7 +40,9 @@ htmlcov/
 # raw datasets and heavy local caches
 data/raw/
 data/*.jsonl
+data/qdrant_storage/
 cache/*.jsonl
+cache/flashrank/
 !cache/.gitkeep
 models/weights/
 
