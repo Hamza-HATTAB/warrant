@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     generator_model: str = "gemma3:12b"
     fallback_generator_model: str = "qwen2.5:7b-instruct-q4_K_M"
-    verifier_model: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
+    verifier_model: str = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+    large_verifier_model: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
+    verifier_device: str = "auto"
+    verifier_temperature: float = 1.0
     embedding_model: str = "BAAI/bge-large-en-v1.5"
 
     # qdrant vector store
