@@ -5,6 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-teal.svg)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2.34-orange.svg)](https://langchain-ai.github.io/langgraph)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Technical Report](https://img.shields.io/badge/Technical_Report-TECHNICAL__REPORT.md-purple.svg)](TECHNICAL_REPORT.md)
 
 WARRANT is an enterprise-grade attributed multi-hop research agent designed to eliminate citation decoration and semantic hallucination in retrieval-augmented generation (RAG).
 
@@ -12,11 +13,13 @@ Standard RAG architectures suffer from citation decoration: models cite entire d
 
 ---
 
-## Live Interactive Demonstrations
+## Live Interactive Demonstrations & Technical Whitepaper
 
 - **Production UI**: [https://warrant-hamza-riadh-s-projects.vercel.app](https://warrant-hamza-riadh-s-projects.vercel.app)
   - Hosted on Vercel with standalone interactive trajectory simulation, visual DAG timeline, claim-level attribution matrices, and dynamic evidence hover linking.
   - Supports live remote connection to local GPU compute via zero-trust Cloudflare HTTPS tunnels.
+- **Formal Technical Whitepaper**: [TECHNICAL_REPORT.md](TECHNICAL_REPORT.md)
+  - Publication-grade engineering report covering mathematical formulations of temperature calibration, empirical HotpotQA bake-off metrics, and 8 GB consumer GPU memory economics.
 
 ---
 
