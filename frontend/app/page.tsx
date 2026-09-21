@@ -208,7 +208,7 @@ export default function Home() {
         backendConnected={backendConnected}
       />
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 mt-6 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mt-6 space-y-6">
         {/* Search Query Prompt & Preset Trajectories */}
         <QueryBar
           query={query}
