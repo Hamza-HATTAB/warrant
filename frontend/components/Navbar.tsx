@@ -9,6 +9,7 @@ interface NavbarProps {
   viewMode: "executive" | "telemetry";
   setViewMode: (val: "executive" | "telemetry") => void;
   onOpenBenchmark: () => void;
+  onOpenLiveSettings: () => void;
   backendConnected: boolean;
 }
 
@@ -18,8 +19,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   viewMode,
   setViewMode,
   onOpenBenchmark,
+  onOpenLiveSettings,
   backendConnected,
 }) => {
+
   return (
     <header className="sticky top-0 z-50 glass-panel border-b border-emerald-500/10 px-4 lg:px-8 py-3.5 shadow-2xl">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
@@ -116,12 +119,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setIsLiveMode(true)}
+              onClick={() => {
+                if (!isLiveMode) {
+                  onOpenLiveSettings();
+                } else {
+                  onOpenLiveSettings();
+                }
+              }}
               className={`px-3 py-1 rounded-md transition-all font-medium flex items-center gap-1.5 ${
                 isLiveMode
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
                   : "text-slate-400 hover:text-slate-200"
               }`}
+              title="Configure live RTX 4060 GPU Tunnel connection"
             >
               <span
                 className={`h-2 w-2 rounded-full ${
@@ -130,6 +140,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               />
               Live GPU
             </button>
+
           </div>
 
           {/* Benchmark Trigger */}

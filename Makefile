@@ -4,20 +4,23 @@ PYTEST := $(VENV)/bin/pytest
 RUFF := $(VENV)/bin/ruff
 
 
-.PHONY: help install test lint format clean ingest run-api run-frontend build-frontend reproduce
+.PHONY: help install test test-adversarial lint format clean ingest run-api run-frontend build-frontend reproduce tunnel
 
 help:
 	@echo "Available commands for Warrant Research Engine:"
-	@echo "  install        - Install package dependecies via uv"
-	@echo "  test           - Run full test suite (pytest -v tests/)"
-	@echo "  lint           - Check code formatting and typing"
-	@echo "  format         - Format source files with ruff"
-	@echo "  ingest         - Run HotpotQA ingestion and build local collection"
-	@echo "  run-api        - Launch FastAPI backend with SSE streaming on port 8000"
-	@echo "  run-frontend   - Launch Next.js 14 frontend in development mode"
-	@echo "  build-frontend - Build Next.js 14 production bundle"
-	@echo "  reproduce      - Run full verifier bake-off benchmark (Naive RAG vs LLM Judge vs Warrant)"
-	@echo "  clean          - Remove temporary bytecode, coverage, and caches"
+	@echo "  install          - Install package dependecies via uv"
+	@echo "  test             - Run full test suite (pytest -v tests/)"
+	@echo "  test-adversarial - Run stress and adversarial perturbation test suite"
+	@echo "  lint             - Check code formatting and typing"
+	@echo "  format           - Format source files with ruff"
+	@echo "  ingest           - Run HotpotQA ingestion and build local collection"
+	@echo "  run-api          - Launch FastAPI backend with SSE streaming on port 8000"
+	@echo "  run-frontend     - Launch Next.js 14 frontend in development mode"
+	@echo "  build-frontend   - Build Next.js 14 production bundle"
+	@echo "  tunnel           - Launch zero-trust Cloudflare HTTPS tunnel for live remote GPU demos"
+	@echo "  reproduce        - Run full verifier bake-off benchmark (Naive RAG vs LLM Judge vs Warrant)"
+	@echo "  clean            - Remove temporary bytecode, coverage, and caches"
+
 
 install:
 	$(UV) pip install -e .
@@ -50,3 +53,9 @@ build-frontend:
 
 reproduce:
 	$(PYTHON) -m benchmarks.bake_off_benchmark
+
+test-adversarial:
+	$(PYTEST) -v tests/test_adversarial.py
+
+tunnel:
+	$(PYTHON) scripts/tunnel.py

@@ -60,3 +60,8 @@ frontend/node_modules/
 frontend/.next/
 frontend/out/
 
+# zero-trust tunnel binary and runtime url
+scripts/cloudflared
+data/live_tunnel_url.txt
+
+

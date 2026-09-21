@@ -7,6 +7,7 @@ import { PipelineStepper } from "../components/PipelineStepper";
 import { StepInspector } from "../components/StepInspector";
 import { VerificationStudio } from "../components/VerificationStudio";
 import { BenchmarkModal } from "../components/BenchmarkModal";
+import { LiveConnectionModal } from "../components/LiveConnectionModal";
 import { PRESET_TRAJECTORIES } from "../lib/presets";
 import { PresetTrajectory, WarrantState, SSEEventPayload } from "../lib/types";
 import { streamLiveQuery, streamPresetTrajectory } from "../lib/sse-client";
@@ -17,6 +18,8 @@ export default function Home() {
   const [query, setQuery] = useState<string>(defaultPreset.query);
   const [selectedPresetId, setSelectedPresetId] = useState<string | undefined>(defaultPreset.id);
   const [isLiveMode, setIsLiveMode] = useState<boolean>(false);
+  const [backendUrl, setBackendUrl] = useState<string>("http://localhost:8000");
+  const [isLiveModalOpen, setIsLiveModalOpen] = useState<boolean>(false);
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isBenchmarkOpen, setIsBenchmarkOpen] = useState<boolean>(false);
@@ -28,13 +31,22 @@ export default function Home() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Load saved backend URL from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("warrant_backend_url");
+      if (saved) setBackendUrl(saved);
+    }
+  }, []);
+
   // Probe live FastAPI backend health periodically
   useEffect(() => {
     let isMounted = true;
     const checkHealth = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/health", {
-          signal: AbortSignal.timeout(2000),
+        const cleanUrl = backendUrl.replace(/\/+$/, "");
+        const res = await fetch(`${cleanUrl}/api/health`, {
+          signal: AbortSignal.timeout(3000),
         });
         if (res.ok && isMounted) {
           setBackendConnected(true);
@@ -52,7 +64,8 @@ export default function Home() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [backendUrl]);
+
 
   const handleSelectPreset = (preset: PresetTrajectory) => {
     if (isLoading) handleAbort();
@@ -164,7 +177,7 @@ export default function Home() {
     };
 
     if (isLiveMode && backendConnected) {
-      await streamLiveQuery("http://localhost:8000", query.trim(), handleEvent, handleError, controller.signal);
+      await streamLiveQuery(backendUrl, query.trim(), handleEvent, handleError, controller.signal);
     } else {
       const matchingPreset = PRESET_TRAJECTORIES.find(
         (p) => p.query.toLowerCase().trim() === query.toLowerCase().trim()
@@ -191,6 +204,7 @@ export default function Home() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         onOpenBenchmark={() => setIsBenchmarkOpen(true)}
+        onOpenLiveSettings={() => setIsLiveModalOpen(true)}
         backendConnected={backendConnected}
       />
 
@@ -217,9 +231,9 @@ export default function Home() {
             <span className="text-slate-200 font-medium">{statusMessage}</span>
           </div>
           <div className="hidden sm:flex items-center gap-3 text-slate-400 font-mono text-[11px]">
-            <span>Gemma 3 12B Unified</span>
+            <span>Endpoint: {backendConnected && isLiveMode ? backendUrl : "Offline Simulator"}</span>
             <span>&middot;</span>
-            <span>Qdrant Hybrid RRF</span>
+            <span>Gemma 3 12B Unified</span>
             <span>&middot;</span>
             <span>DeBERTa-v3 CPU</span>
           </div>
@@ -250,6 +264,16 @@ export default function Home() {
         />
       </div>
 
+      {/* Live GPU Connection Modal */}
+      <LiveConnectionModal
+        isOpen={isLiveModalOpen}
+        onClose={() => setIsLiveModalOpen(false)}
+        backendUrl={backendUrl}
+        setBackendUrl={setBackendUrl}
+        isLiveMode={isLiveMode}
+        setIsLiveMode={setIsLiveMode}
+      />
+
       {/* Verifier Bake-Off Modal */}
       <BenchmarkModal
         isOpen={isBenchmarkOpen}
@@ -258,3 +282,4 @@ export default function Home() {
     </main>
   );
 }
+
