@@ -43,7 +43,7 @@ export const StepInspector: React.FC<StepInspectorProps> = ({ stepNumber, onClos
             "Local Unified LLM: Gemma 3 12B Unified running via Ollama on your local RTX 4060 GPU.",
             "Pydantic JSON Grammar: Constrains LLM generation to an explicit array of atomic claims.",
             "Span Binding: Each claim must cite one or more exact evidence span IDs (e.g. [arthur_mag_s0]).",
-            "Zero Fabrication: Hallucinated span IDs are instantly detected and discarded.",
+            "Hallucinated Span Filtering: Non-existent span IDs are instantly detected and discarded.",
           ],
           telemetry: `${state?.synthetic_claims.length || 0} atomic claims synthesized.`,
         };
@@ -83,14 +83,14 @@ export const StepInspector: React.FC<StepInspectorProps> = ({ stepNumber, onClos
         return {
           title: "Step 05: 3-State Contractual Abstention Policy",
           icon: Award,
-          badge: "Safety Contract Guarantee",
+          badge: "Selective Abstention Policy Contract",
           badgeColor: "text-emerald-400 bg-emerald-950/50 border-emerald-800",
           summary:
-            "Standard RAG forces an answer even when ungrounded. Warrant enforces a mathematically sound 3-state contract guaranteeing zero hallucinated statements reach the user.",
+            "Standard RAG forces an answer even when ungrounded. Warrant enforces a mathematically sound 3-state contract enforcing selective abstention whenever candidate assertions fail the calibrated NLI threshold (tau >= 0.82), mitigating unsupported statements in high-consequence domains.",
           howItWorks: [
-            "FULL_PASS: 100% of claims pass Stage 1 and Stage 2. Full warranted answer delivered.",
+            "FULL_PASS: All candidate claims pass Stage 1 and Stage 2. Full warranted answer delivered.",
             "PARTIAL_PASS: At least one claim verified, but ungrounded claims detected. Non-entailed claims pruned, verified core delivered with audit notice.",
-            "ABSTAIN: Zero valid spans retrieved or zero claims verified. System explicitly refuses to answer rather than fabricating false information.",
+            "ABSTAIN: Zero valid spans retrieved or zero claims verified. System explicitly refuses to extrapolate beyond verified evidence.",
           ],
           telemetry: `Current Contract Verdict: ${state?.policy_decision || "Pending"}`,
         };

@@ -158,7 +158,7 @@ export const BenchmarkModal: React.FC<BenchmarkModalProps> = ({ isOpen, onClose 
                 4. Strict 3-State Contract
               </div>
               <p className="text-slate-400">
-                Unlike binary RAG that always forces an answer, WARRANT enforces <code className="text-terminal-amber">FULL_PASS</code>, <code className="text-terminal-amber">PARTIAL_PASS</code>, and <code className="text-terminal-rose">ABSTAIN</code>, guaranteeing zero fabricated claims in high-stakes domain deployments.
+                Unlike binary RAG that always forces an answer, WARRANT enforces <code className="text-terminal-amber">FULL_PASS</code>, <code className="text-terminal-amber">PARTIAL_PASS</code>, and <code className="text-terminal-rose">ABSTAIN</code>, eliminating unsupported claims across our 200 HotpotQA evaluation questions via selective abstention.
               </p>
             </div>
           </div>

@@ -36,7 +36,7 @@ export const PolicyHUD: React.FC<PolicyHUDProps> = ({ state, isLoading }) => {
           icon: ShieldCheck,
           iconColor: "text-terminal-green",
           badgeBg: "bg-terminal-green/20 text-terminal-greenBright border-terminal-green/40",
-          title: "CONTRACT: FULL_PASS (100% Attributed)",
+          title: "CONTRACT: FULL_PASS (All Claims Formally Verified)",
         };
       case "PARTIAL_PASS":
         return {
@@ -56,7 +56,7 @@ export const PolicyHUD: React.FC<PolicyHUDProps> = ({ state, isLoading }) => {
           icon: ShieldX,
           iconColor: "text-terminal-rose",
           badgeBg: "bg-terminal-rose/20 text-terminal-rose border-terminal-rose/40",
-          title: "CONTRACT: STRICT ABSTENTION (Zero Hallucination Refusal)",
+          title: "CONTRACT: STRICT ABSTENTION (Unverified Premise Refusal)",
         };
       default:
         return {

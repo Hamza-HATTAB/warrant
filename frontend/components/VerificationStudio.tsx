@@ -71,11 +71,11 @@ export const VerificationStudio: React.FC<VerificationStudioProps> = ({
         return {
           icon: ShieldCheck,
           title: "Attribution Verdict: FULL PASS",
-          badge: "100% Verified & Attributed",
+          badge: "Verified Claim Attribution",
           bg: "bg-emerald-950/40 border-emerald-500/30 text-emerald-300",
           aura: "glow-emerald",
           description:
-            "100% of claims passed the sub-millisecond deterministic guard and exceeded the calibrated DeBERTa NLI threshold (tau >= 0.82). Zero hallucinations detected.",
+            "All candidate assertions passed the deterministic regex/NER guard and satisfied the calibrated DeBERTa-v3 NLI threshold (tau >= 0.82) against cited Wikipedia spans.",
         };
       case "PARTIAL_PASS":
         return {
@@ -91,11 +91,11 @@ export const VerificationStudio: React.FC<VerificationStudioProps> = ({
         return {
           icon: ShieldX,
           title: "Attribution Verdict: STRICT ABSTENTION",
-          badge: "Zero-Hallucination Refusal",
+          badge: "Selective Abstention Refusal",
           bg: "bg-rose-950/40 border-rose-500/30 text-rose-300",
           aura: "glow-rose",
           description:
-            "Insufficient grounded evidence retrieved. Rather than hallucinating or fabricating facts, Warrant executed its contractual refusal guarantee.",
+            "Insufficient grounded evidence retrieved. Rather than hallucinating or fabricating facts, Warrant executed its selective abstention contract, refusing to extrapolate beyond retrieved evidence.",
         };
       default:
         return {
@@ -225,12 +225,12 @@ export const VerificationStudio: React.FC<VerificationStudioProps> = ({
                         {claim.claim_id}
                       </span>
                       {claim.guard_status === "PASSED" ? (
-                        <span className="text-[11px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
                           Guard: Passed (&lt;1ms)
                         </span>
                       ) : (
-                        <span className="text-[11px] text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-500/30 flex items-center gap-1">
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
                           <XCircle className="w-3 h-3" />
                           Guard: {claim.guard_status}
                         </span>
@@ -250,16 +250,16 @@ export const VerificationStudio: React.FC<VerificationStudioProps> = ({
                   </div>
 
                   {/* Claim Text */}
-                  <p className="text-sm font-medium text-slate-100 mb-3 leading-relaxed">
+                  <p className="text-white font-medium text-sm leading-snug mb-3">
                     &ldquo;{claim.text}&rdquo;
                   </p>
 
                   {/* Verification Gauges */}
                   <div className="bg-black/50 rounded-lg p-3 border border-slate-800/80 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-medium">DeBERTa-v3 NLI Entailment:</span>
+                      <span className="text-slate-300 font-medium">DeBERTa-v3 NLI Entailment:</span>
                       <span
-                        className={`font-mono font-bold ${
+                        className={`font-mono text-xs font-bold ${
                           claim.nli_entailment_prob >= 0.82 ? "text-emerald-400" : "text-rose-400"
                         }`}
                       >
@@ -373,11 +373,11 @@ export const VerificationStudio: React.FC<VerificationStudioProps> = ({
                         key={span.id}
                         className={`p-3 rounded-xl border transition-all text-xs leading-relaxed ${
                           isCited
-                            ? "bg-emerald-950/50 border-emerald-400 text-white glow-emerald ring-1 ring-emerald-500/30"
-                            : "bg-black/30 border-slate-800/80 text-slate-300"
+                            ? "border-emerald-500/60 bg-emerald-950/40 text-emerald-100 shadow-md ring-1 ring-emerald-500/30"
+                            : "bg-black/40 border-slate-800/80 text-slate-300"
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-1 text-[10px] text-slate-400 font-mono">
+                        <div className="flex items-center justify-between mb-1.5 text-[10px] text-slate-400 font-mono">
                           <span
                             className={`font-bold ${
                               isCited ? "text-emerald-300" : "text-slate-400"
@@ -386,20 +386,20 @@ export const VerificationStudio: React.FC<VerificationStudioProps> = ({
                             [{span.id}]
                           </span>
                           <div className="flex items-center gap-2">
-                            <span className="bg-black/40 px-1.5 py-0.5 rounded text-slate-300">
+                            <span className="bg-black/50 px-1.5 py-0.5 rounded text-slate-300 border border-white/5">
                               Hop {span.retrieval_hop}
                             </span>
-                            <span>Score: {span.score.toFixed(3)}</span>
+                            <span className="text-slate-400">Score: {span.score.toFixed(3)}</span>
                           </div>
                         </div>
 
-                        <p className={`text-sm ${isCited ? "text-white font-medium" : "text-slate-300"}`}>
+                        <p className={`text-sm leading-relaxed ${isCited ? "text-emerald-50 font-medium" : "text-slate-200"}`}>
                           {span.text}
                         </p>
 
                         {isCited && (
-                          <div className="mt-2 pt-1.5 border-t border-emerald-500/20 text-[11px] text-emerald-300 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          <div className="mt-2.5 pt-1.5 border-t border-emerald-500/30 text-[11px] text-emerald-300 font-medium flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                             <span>
                               Active Grounding: Cited by <strong>[{activeClaim?.claim_id}]</strong>
                             </span>

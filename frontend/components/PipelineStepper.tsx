@@ -61,7 +61,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
     {
       id: 5,
       title: "3-State Contract",
-      subtitle: "Guaranteed Attribution Verdict",
+      subtitle: "Selective Prediction & Policy Verdict",
       icon: Award,
       isDone: Boolean(state?.policy_decision),
       badge: state?.policy_decision || "Pending",

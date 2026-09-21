@@ -166,7 +166,7 @@ export default function Home() {
 
       if (event.event_type === "complete") {
         setIsLoading(false);
-        setStatusMessage("Execution complete. Attributed verification guarantee enforced.");
+        setStatusMessage("Execution complete. Selective abstention policy contract evaluated.");
       }
     };
 

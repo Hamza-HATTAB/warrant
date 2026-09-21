@@ -38,11 +38,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   WARRANT
                 </span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                  Verification Engine
+                  v0.1.0 &middot; Calibrated NLI Gate
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-normal">
-                Multi-Hop Attributed Research &middot; Zero Hallucination Guarantee
+                Multi-Hop Attributed Research &middot; Claim-Level NLI Verification &amp; Selective Abstention
               </p>
             </div>
           </div>
