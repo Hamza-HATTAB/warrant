@@ -416,7 +416,7 @@ WARRANT is optimized for edge workstations equipped with a single 8 GB GPU (e.g.
 To enable remote demonstration and production access without cloud GPU rental costs, WARRANT implements an outbound-only virtual tunnel daemon (`scripts/tunnel.py`):
 
 ```
-[ Remote Recruiter / User ] (Vercel HTTPS UI)
+[ Remote Client / Web UI ] (Vercel HTTPS UI)
                │
                ▼
    [ Cloudflare Anycast Edge ]
@@ -430,7 +430,7 @@ To enable remote demonstration and production access without cloud GPU rental co
 
 - **Zero Inbound Attack Surface:** No ports are forwarded on the local router; connection is negotiated outbound over port 7844.
 - **TLS Termination & Mixed-Content Elimination:** Cloudflare provisions a temporary trusted TLS certificate, allowing the Vercel HTTPS frontend to stream SSE data without browser CORS or mixed-content blocking.
-- **Dynamic Endpoint Configuration:** The Next.js frontend UI incorporates a `LiveConnectionModal` enabling interviewers to connect their session to the candidate's active GPU tunnel with real-time ping probing.
+- **Dynamic Endpoint Configuration:** The Next.js frontend UI incorporates a `LiveConnectionModal` enabling operators to connect their session to the active GPU daemon with real-time ping probing.
 
 ---
 

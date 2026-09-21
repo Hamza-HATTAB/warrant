@@ -174,7 +174,7 @@ make run-api
 make run-frontend
 ```
 
-### 5. Launch Live Zero-Trust Tunnel for Remote Interviews
+### 5. Launch Live Zero-Trust Tunnel for Remote Deployment
 ```bash
 # Launches an encrypted public HTTPS tunnel to your local RTX 4060 GPU
 make tunnel
