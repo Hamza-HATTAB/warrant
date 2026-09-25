@@ -4,16 +4,20 @@ import React, { useState, useEffect, useRef } from "react";
 import { Navbar } from "../components/Navbar";
 import { QueryBar } from "../components/QueryBar";
 import { EpistemicLatticeCanvas } from "../components/EpistemicLatticeCanvas";
-import { AnimatedPipelineDAG } from "../components/AnimatedPipelineDAG";
 import { CitationDisassembler } from "../components/CitationDisassembler";
-import { TelemetryBentoGrid } from "../components/TelemetryBentoGrid";
+import { VerificationStudioTabs } from "../components/VerificationStudioTabs";
 import { StepInspector } from "../components/StepInspector";
-import { VerificationStudio } from "../components/VerificationStudio";
 import { BenchmarkModal } from "../components/BenchmarkModal";
 import { LiveConnectionModal } from "../components/LiveConnectionModal";
-import { RetroGrid } from "../components/ui/retro-grid";
 import { PRESET_TRAJECTORIES } from "../lib/presets";
-import { PresetTrajectory, WarrantState, SSEEventPayload, EvidenceSpan, AtomicClaim, PolicyDecision } from "../lib/types";
+import {
+  PresetTrajectory,
+  WarrantState,
+  SSEEventPayload,
+  EvidenceSpan,
+  AtomicClaim,
+  PolicyDecision,
+} from "../lib/types";
 import { streamLiveQuery, streamPresetTrajectory } from "../lib/sse-client";
 
 export default function Home() {
@@ -29,13 +33,14 @@ export default function Home() {
   const [isBenchmarkOpen, setIsBenchmarkOpen] = useState<boolean>(false);
   const [activeStep, setActiveStep] = useState<number>(0);
   const [viewMode, setViewMode] = useState<"executive" | "telemetry">("executive");
+  const [selectedClaimId, setSelectedClaimId] = useState<string | null>("c_001");
 
   const [warrantState, setWarrantState] = useState<WarrantState | null>(defaultPreset.mockState);
   const [statusMessage, setStatusMessage] = useState<string>("Epistemic Verification Cockpit Ready");
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load saved backend URL from localStorage
+  // Load saved backend URL
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("warrant_backend_url");
@@ -76,7 +81,8 @@ export default function Home() {
     setQuery(preset.query);
     setWarrantState(preset.mockState);
     setActiveStep(0);
-    setStatusMessage(`Loaded HotpotQA trajectory: ${preset.title}`);
+    setSelectedClaimId(preset.mockState.synthetic_claims[0]?.claim_id || null);
+    setStatusMessage(`Loaded trajectory: ${preset.title}`);
   };
 
   const handleAbort = () => {
@@ -96,9 +102,8 @@ export default function Home() {
     abortControllerRef.current = controller;
     setIsLoading(true);
     setActiveStep(1);
-    setStatusMessage("Initializing multi-hop epistemic pipeline...");
+    setStatusMessage("Executing multi-hop epistemic verification...");
 
-    // Initial clean state for incoming stream
     const emptyState: WarrantState = {
       query: query.trim(),
       current_hop: 0,
@@ -139,6 +144,7 @@ export default function Home() {
           setActiveStep(4);
           if (Array.isArray(event.data?.claims)) {
             next.synthetic_claims = event.data.claims as AtomicClaim[];
+            setSelectedClaimId(next.synthetic_claims[0]?.claim_id || null);
           }
         } else if (event.event_type === "claims_verified") {
           setActiveStep(6);
@@ -202,11 +208,8 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen relative bg-[#030712] text-slate-100 pb-24 overflow-hidden">
-      {/* Ambient Retro Grid Background */}
-      <RetroGrid className="opacity-20" angle={65} />
-
-      {/* Brand Navbar */}
+    <main className="min-h-screen bg-[#030712] text-slate-100 pb-20 selection:bg-emerald-500/30 selection:text-white">
+      {/* Flagship Navbar */}
       <Navbar
         isLiveMode={isLiveMode}
         setIsLiveMode={setIsLiveMode}
@@ -217,107 +220,79 @@ export default function Home() {
         backendConnected={backendConnected}
       />
 
-      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mt-6 space-y-8 relative z-10">
-        {/* Hero Section Header & 3D Epistemic Lattice Canvas */}
-        <section className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-800/80">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Epistemic Verification Cockpit &middot; Dual-Stage Grounding
-              </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white font-mono">
-                WARRANT <span className="text-emerald-400">&middot;</span> Dual-Stage Attribution Engine
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
-                Asymmetric compute partitioning: Gemma-3 12B (7.36 GB active VRAM on RTX 4060) with sub-millisecond (<span className="text-purple-400 font-mono font-semibold">&lt;1ms</span>) deterministic entity verification and calibrated DeBERTa-v3 cross-encoder (<span className="text-emerald-400 font-mono font-semibold">&tau; &ge; 0.820</span>).
-              </p>
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
+        {/* 1. Full-Bleed 3D Spatial Hero Section */}
+        <section className="space-y-6">
+          {/* High-Impact Editorial Statement */}
+          <div className="max-w-4xl mx-auto text-center space-y-4 pt-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>Flagship Epistemic Attribution Cockpit</span>
             </div>
 
-            <div className="hidden lg:flex flex-col items-end gap-1 text-xs font-mono text-slate-400">
-              <span className="px-2.5 py-1 rounded bg-black/60 border border-slate-800 text-slate-300">
-                HotpotQA Precision: <strong className="text-emerald-400">100.0%</strong>
-              </span>
-              <span className="text-[11px] text-slate-500">
-                Zero Hallucination Rate on 1,991 Distractors
-              </span>
-            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-sans text-metallic leading-tight">
+              WARRANT <span className="text-gradient-emerald">&middot;</span> Dual-Stage Attribution
+            </h1>
+
+            <p className="text-base sm:text-lg text-slate-400 font-normal leading-relaxed max-w-2xl mx-auto">
+              Eliminating citation decoration and hallucinations through asymmetric compute partitioning: Gemma-3 12B on 8GB RTX 4060 GPU and calibrated DeBERTa-v3 cross-encoder on CPU.
+            </p>
           </div>
 
-          {/* Interactive Three.js 3D Epistemic Lattice */}
-          <EpistemicLatticeCanvas state={warrantState} />
-        </section>
-
-        {/* Search Query Prompt & Preset Trajectory Switcher */}
-        <section>
-          <QueryBar
-            query={query}
-            setQuery={setQuery}
-            isLoading={isLoading}
-            onExecute={handleExecute}
-            onAbort={handleAbort}
-            onSelectPreset={handleSelectPreset}
-            selectedPresetId={selectedPresetId}
-          />
-        </section>
-
-        {/* Live Status Bar */}
-        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-black/60 border border-slate-800 text-xs font-mono shadow-inner">
-          <div className="flex items-center gap-2.5">
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                isLoading ? "bg-emerald-400 animate-ping" : "bg-emerald-500/80"
-              }`}
+          {/* Floating Frosted Glass Query Capsule & Preset Selector Pills */}
+          <div className="max-w-3xl mx-auto">
+            <QueryBar
+              query={query}
+              setQuery={setQuery}
+              isLoading={isLoading}
+              onExecute={handleExecute}
+              onAbort={handleAbort}
+              onSelectPreset={handleSelectPreset}
+              selectedPresetId={selectedPresetId}
             />
-            <span className="text-slate-200 font-medium">{statusMessage}</span>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-slate-400 text-[11px]">
-            <span>Channel: {isLiveMode && backendConnected ? backendUrl : "Deterministic Simulator"}</span>
-            <span>&bull;</span>
-            <span>Gemma 3 12B (GPU)</span>
-            <span>&bull;</span>
-            <span>DeBERTa-v3 (CPU)</span>
+
+          {/* Full-Bleed Spatial 3D Epistemic Lattice */}
+          <div className="w-full pt-2">
+            <EpistemicLatticeCanvas
+              state={warrantState}
+              selectedClaimId={selectedClaimId}
+              onSelectClaim={(id) => setSelectedClaimId(id)}
+            />
           </div>
-        </div>
-
-        {/* 7-Node Animated Verification Pipeline DAG */}
-        <section>
-          <AnimatedPipelineDAG
-            state={warrantState}
-            isLoading={isLoading}
-            activeNodeIndex={activeStep}
-            onSelectNode={(nodeIndex) => setActiveStep(nodeIndex)}
-          />
         </section>
 
-        {/* Educational Deep Dive Drawer (Appears when user clicks any step) */}
-        {activeStep > 0 && (
-          <StepInspector
-            stepNumber={activeStep}
-            onClose={() => setActiveStep(0)}
-            state={warrantState}
-          />
-        )}
+        {/* 2. The Integrated 2-Column Split Studio */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Epistemic Trajectory & Citation Disassembler (7 cols) */}
+          <div className="lg:col-span-7">
+            <CitationDisassembler
+              state={warrantState}
+              selectedClaimId={selectedClaimId}
+              onSelectClaim={(id) => setSelectedClaimId(id)}
+            />
+          </div>
 
-        {/* Interactive Citation Disassembler & Claim Inspector */}
-        <section>
-          <CitationDisassembler state={warrantState} />
-        </section>
-
-        {/* Aceternity Spotlight Telemetry Bento Grid */}
-        <section>
-          <TelemetryBentoGrid />
-        </section>
-
-        {/* Full Claim-Level Verification Matrix & Ground Truth Evidence Corpus */}
-        <section>
-          <VerificationStudio
-            state={warrantState}
-            isLoading={isLoading}
-            viewMode={viewMode}
-          />
+          {/* Right Column: Verification Engine & Telemetry Tabs (5 cols) */}
+          <div className="lg:col-span-5 sticky top-24">
+            <VerificationStudioTabs
+              state={warrantState}
+              isLoading={isLoading}
+              activeNodeIndex={activeStep}
+              onSelectNode={(step) => setActiveStep(step)}
+            />
+          </div>
         </section>
       </div>
+
+      {/* Step Inspector Drawer */}
+      {activeStep > 0 && (
+        <StepInspector
+          stepNumber={activeStep}
+          onClose={() => setActiveStep(0)}
+          state={warrantState}
+        />
+      )}
 
       {/* Live GPU Connection Modal */}
       <LiveConnectionModal
@@ -329,7 +304,7 @@ export default function Home() {
         setIsLiveMode={setIsLiveMode}
       />
 
-      {/* Verifier Bake-Off Benchmark Modal */}
+      {/* Verifier Bake-Off Modal */}
       <BenchmarkModal
         isOpen={isBenchmarkOpen}
         onClose={() => setIsBenchmarkOpen(false)}

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,10 +6,10 @@
 
 :root {
   --bg-void: #030712;
-  --bg-surface: #08090c;
-  --bg-elevated: #0f172a;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(16, 185, 129, 0.4);
+  --bg-surface: #080a0f;
+  --bg-elevated: #0f1420;
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-specular: rgba(255, 255, 255, 0.14);
   --accent-emerald: #10b981;
   --accent-amber: #f59e0b;
   --accent-crimson: #ef4444;
@@ -18,104 +18,105 @@
 }
 
 body {
-  background: radial-gradient(circle at 50% 0%, #08090c 0%, #030712 60%, #02040a 100%);
-  background-attachment: fixed;
+  background: #030712;
   color: #f1f5f9;
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow-x: hidden;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Obsidian Scrollbar */
+/* Custom Minimal Obsidian Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #030712;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* Glassmorphic Obsidian Plates */
-.glass-panel {
-  background: rgba(8, 9, 12, 0.85);
+/* Flagship Tactile Glass Surfaces with Specular Inner Glow */
+.glass-surface {
+  background: rgba(8, 10, 15, 0.70);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 20px 40px -15px rgba(0, 0, 0, 0.8);
+}
+
+.glass-surface-subtle {
+  background: rgba(8, 10, 15, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-surface-interactive {
+  background: rgba(8, 10, 15, 0.65);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.7);
-}
-
-.glass-panel-hover {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 10px 30px -10px rgba(0, 0, 0, 0.7);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glass-panel-hover:hover {
-  background: rgba(12, 14, 20, 0.95);
-  border-color: rgba(16, 185, 129, 0.35);
-  box-shadow: 0 8px 32px -4px rgba(16, 185, 129, 0.15);
+.glass-surface-interactive:hover {
+  background: rgba(14, 18, 26, 0.85);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.18), 0 16px 36px -10px rgba(0, 0, 0, 0.9);
 }
 
-.glass-panel-elevated {
-  background: rgba(10, 12, 18, 0.92);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+/* Floating Frosted Pill */
+.glass-pill {
+  background: rgba(4, 6, 10, 0.75);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.8);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.15), 0 24px 48px -12px rgba(0, 0, 0, 0.85);
 }
 
-.glass-panel-subtle {
-  background: rgba(6, 8, 12, 0.75);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Glow Effects */
-.glow-emerald {
-  box-shadow: 0 0 30px -4px rgba(16, 185, 129, 0.25);
-}
-
-.glow-emerald-lg {
-  box-shadow: 0 0 50px -8px rgba(16, 185, 129, 0.35);
-}
-
-.glow-amber {
-  box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.25);
-}
-
-.glow-rose {
-  box-shadow: 0 0 30px -5px rgba(239, 68, 68, 0.25);
-}
-
-.glow-cyan {
-  box-shadow: 0 0 30px -4px rgba(6, 182, 212, 0.25);
-}
-
-/* Gradient Text */
-.gradient-title {
-  background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 50%, #34d399 100%);
+/* Metallic Display Gradient Typography */
+.text-metallic {
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 60%, #94a3b8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.gradient-emerald {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #a7f3d0 0%, #10b981 60%, #059669 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Subtle Interactive Animations */
+/* Micro Focus Lighting */
+.glow-emerald-subtle {
+  box-shadow: 0 0 24px -6px rgba(16, 185, 129, 0.25);
+}
+
+.glow-amber-subtle {
+  box-shadow: 0 0 24px -6px rgba(245, 158, 11, 0.25);
+}
+
+.glow-crimson-subtle {
+  box-shadow: 0 0 24px -6px rgba(239, 68, 68, 0.25);
+}
+
+/* Subtle pulse */
 @keyframes subtle-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(0.99); }
+  50% { opacity: 0.85; transform: scale(0.995); }
 }
 
 .animate-subtle-pulse {

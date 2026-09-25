@@ -1,9 +1,10 @@
 "use client";
 
 import React, { KeyboardEvent } from "react";
-import { Search, Play, Square, Sparkles, CornerDownLeft, ShieldCheck, AlertCircle, ShieldAlert } from "lucide-react";
+import { Search, Play, Square, Sparkles, ArrowRight, ShieldCheck, AlertTriangle, ShieldX } from "lucide-react";
 import { PRESET_TRAJECTORIES } from "../lib/presets";
 import { PresetTrajectory } from "../lib/types";
+import { cn } from "../lib/utils";
 
 interface QueryBarProps {
   query: string;
@@ -13,6 +14,7 @@ interface QueryBarProps {
   onAbort: () => void;
   onSelectPreset: (preset: PresetTrajectory) => void;
   selectedPresetId?: string;
+  className?: string;
 }
 
 export const QueryBar: React.FC<QueryBarProps> = ({
@@ -23,6 +25,7 @@ export const QueryBar: React.FC<QueryBarProps> = ({
   onAbort,
   onSelectPreset,
   selectedPresetId,
+  className = "",
 }) => {
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -34,32 +37,31 @@ export const QueryBar: React.FC<QueryBarProps> = ({
   };
 
   return (
-    <div className="glass-panel-elevated rounded-2xl p-5 md:p-6 shadow-2xl border border-emerald-500/20">
-      {/* Search Input Box */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-400">
-            <Search className="w-5 h-5" />
-          </div>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            placeholder="Ask a multi-hop research inquiry (e.g. Which magazine was started first, Arthur's Magazine or First for Women?)..."
-            className="w-full pl-12 pr-4 py-3.5 bg-black/60 border border-slate-700/80 focus:border-emerald-400 rounded-xl text-base text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-inner"
-          />
+    <div className={cn("w-full space-y-4", className)}>
+      {/* Floating Frosted Glass Capsule */}
+      <div className="glass-pill rounded-full p-2 pl-6 pr-2.5 flex items-center gap-3 transition-all duration-300 focus-within:border-emerald-500/40 focus-within:glow-emerald-subtle">
+        <div className="text-emerald-400 flex items-center justify-center">
+          <Search className="w-5 h-5" />
         </div>
 
-        {/* Action Button */}
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isLoading}
+          placeholder="Ask a multi-hop inquiry (e.g. Which magazine was started first, Arthur's Magazine or First for Women?)..."
+          className="flex-1 bg-transparent border-none text-sm md:text-base text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-0 font-sans"
+        />
+
+        {/* Tactile Execute / Abort Button */}
         {isLoading ? (
           <button
             type="button"
             onClick={onAbort}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500/30 text-sm font-semibold transition-colors shadow-lg shadow-rose-500/10"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 text-xs font-semibold transition-all shadow-md active:scale-95"
           >
-            <Square className="w-4 h-4 fill-current" />
+            <Square className="w-3.5 h-3.5 fill-current" />
             <span>Abort Run</span>
           </button>
         ) : (
@@ -67,82 +69,56 @@ export const QueryBar: React.FC<QueryBarProps> = ({
             type="button"
             onClick={onExecute}
             disabled={!query.trim()}
-            className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold text-sm shadow-xl shadow-emerald-500/25 transition-all transform active:scale-95"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-semibold text-xs md:text-sm transition-all shadow-lg shadow-emerald-500/25 active:scale-95"
           >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Execute Research</span>
-            <CornerDownLeft className="w-3.5 h-3.5 opacity-60 hidden sm:inline" />
+            <span>Execute Attribution</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Preset Scenarios Header */}
-      <div className="mt-5 pt-4 border-t border-slate-800">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Select a Pre-Engineered HotpotQA Multi-Hop Trajectory:</span>
-          </div>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">
-            Demonstrates full DAG verification and edge case handling
-          </span>
-        </div>
+      {/* Preset Trajectory Selector Pills */}
+      <div className="flex flex-wrap items-center gap-2 px-2">
+        <span className="text-xs font-medium text-slate-400 flex items-center gap-1.5 mr-1">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+          <span>HotpotQA Presets:</span>
+        </span>
 
-        {/* 4 Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {PRESET_TRAJECTORIES.map((preset) => {
-            const isSelected = selectedPresetId === preset.id;
-            const badgeIcon =
-              preset.expectedDecision === "FULL_PASS"
-                ? ShieldCheck
-                : preset.expectedDecision === "PARTIAL_PASS"
-                ? AlertCircle
-                : ShieldAlert;
+        {PRESET_TRAJECTORIES.map((preset) => {
+          const isSelected = selectedPresetId === preset.id;
+          const isFullPass = preset.expectedDecision === "FULL_PASS";
+          const isPartialPass = preset.expectedDecision === "PARTIAL_PASS";
 
-            const badgeStyles =
-              preset.expectedDecision === "FULL_PASS"
-                ? "text-emerald-400 bg-emerald-950/60 border-emerald-500/30"
-                : preset.expectedDecision === "PARTIAL_PASS"
-                ? "text-amber-400 bg-amber-950/60 border-amber-500/30"
-                : "text-rose-400 bg-rose-950/60 border-rose-500/30";
-
-            const BadgeIcon = badgeIcon;
-
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => onSelectPreset(preset)}
-                className={`text-left p-3 rounded-xl border transition-all flex flex-col justify-between ${
-                  isSelected
-                    ? "bg-emerald-950/40 border-emerald-400 shadow-md ring-1 ring-emerald-500/30"
-                    : "bg-black/30 border-slate-800/80 hover:bg-black/50 hover:border-slate-700"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-1 mb-1.5">
-                    <span className="font-semibold text-xs text-white truncate">
-                      {preset.title}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${badgeStyles}`}
-                    >
-                      <BadgeIcon className="w-2.5 h-2.5" />
-                      {preset.expectedDecision}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-snug line-clamp-2">
-                    {preset.description}
-                  </p>
-                </div>
-
-                <div className="mt-2 text-[10px] text-slate-500 font-mono">
-                  {preset.hopsRequired} hops &middot; {preset.mockState.synthetic_claims.length} claims
-                </div>
-              </button>
-            );
-          })}
-        </div>
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => onSelectPreset(preset)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-2",
+                isSelected
+                  ? isFullPass
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                    : isPartialPass
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
+                    : "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm"
+                  : "bg-white/[0.04] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08] border border-white/[0.06]"
+              )}
+            >
+              {isFullPass ? (
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              ) : isPartialPass ? (
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <ShieldX className="w-3.5 h-3.5 text-rose-400" />
+              )}
+              <span>{preset.title}</span>
+              <span className="text-[10px] text-slate-500 font-mono">
+                {preset.expectedDecision}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

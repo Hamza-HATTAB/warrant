@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { WarrantState, AtomicClaim, EvidenceSpan } from "../lib/types";
 
 interface NodeData {
@@ -11,7 +12,6 @@ interface NodeData {
   status: "verified" | "refuted" | "neutral" | "pending";
   position: THREE.Vector3;
   targetPosition: THREE.Vector3;
-  velocity: THREE.Vector3;
   score?: number;
   latencyMs?: number;
   details: string;
@@ -19,11 +19,15 @@ interface NodeData {
 
 interface EpistemicLatticeCanvasProps {
   state: WarrantState | null;
+  selectedClaimId?: string | null;
+  onSelectClaim?: (claimId: string) => void;
   className?: string;
 }
 
 export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
   state,
+  selectedClaimId,
+  onSelectClaim,
   className = "",
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -36,16 +40,15 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
-    // Sizing
-    let width = container.clientWidth || 800;
-    let height = container.clientHeight || 500;
+    let width = container.clientWidth || 1200;
+    let height = container.clientHeight || 560;
 
-    // Scene, Camera, Renderer
+    // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.035);
+    scene.fog = new THREE.FogExp2(0x030712, 0.028);
 
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    camera.position.set(0, 0, 18);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, 2.5, 20);
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -55,47 +58,62 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // OrbitControls for natural inspection
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = false; // keep page scroll smooth
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.45;
+    controls.maxPolarAngle = Math.PI / 1.7;
+    controls.minPolarAngle = Math.PI / 3.2;
+
+    // 2. Lighting Setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const pointLightEmerald = new THREE.PointLight(0x10b981, 2.5, 50);
-    pointLightEmerald.position.set(5, 5, 8);
-    scene.add(pointLightEmerald);
+    const keyLightEmerald = new THREE.PointLight(0x10b981, 3.5, 45);
+    keyLightEmerald.position.set(8, 6, 8);
+    scene.add(keyLightEmerald);
 
-    const pointLightCyan = new THREE.PointLight(0x06b6d4, 2.0, 50);
-    pointLightCyan.position.set(-5, -4, 6);
-    scene.add(pointLightCyan);
+    const fillLightCyan = new THREE.PointLight(0x06b6d4, 2.8, 45);
+    fillLightCyan.position.set(-8, -4, 6);
+    scene.add(fillLightCyan);
 
-    // Group for mouse parallax tilt
+    const backlightViolet = new THREE.PointLight(0x8b5cf6, 2.2, 50);
+    backlightViolet.position.set(0, 8, -6);
+    scene.add(backlightViolet);
+
+    // Root Group
     const graphGroup = new THREE.Group();
     scene.add(graphGroup);
 
-    // 1. Build Nodes
+    // 3. Populate Graph Nodes
     const nodes: NodeData[] = [];
     const meshes: THREE.Mesh[] = [];
     const pulseMeshes: THREE.Mesh[] = [];
 
     // Query Root Node
-    const queryText = state?.query || "Which magazine was started first?";
+    const queryText = state?.query || "Which magazine was started first, Arthur's Magazine or First for Women?";
     nodes.push({
       id: "node_query",
-      label: "Query Node",
+      label: "Inquiry Root",
       type: "query",
       status: "verified",
-      position: new THREE.Vector3(0, 4.2, 0),
-      targetPosition: new THREE.Vector3(0, 4.2, 0),
-      velocity: new THREE.Vector3(),
+      position: new THREE.Vector3(0, 4.5, 0),
+      targetPosition: new THREE.Vector3(0, 4.5, 0),
       details: queryText,
     });
 
-    // Document Nodes from retrieved spans
+    // Evidence Spans / Document Nodes
     const spans: EvidenceSpan[] = state?.retrieved_spans && state.retrieved_spans.length > 0
       ? state.retrieved_spans
       : [
           {
-            id: "doc_1",
+            id: "arthur_mag_s0",
             doc_title: "Arthur's Magazine (1844)",
             text: "Arthur's Magazine was founded in 1844 in Philadelphia.",
             char_start: 0,
@@ -104,7 +122,7 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
             score: 0.942,
           },
           {
-            id: "doc_2",
+            id: "first_women_s1",
             doc_title: "First for Women (1989)",
             text: "First for Women was started in 1989 by Bauer Media.",
             char_start: 0,
@@ -116,10 +134,9 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
 
     const uniqueDocs = Array.from(new Set(spans.map((s) => s.doc_title)));
     uniqueDocs.forEach((docTitle, idx) => {
-      const angle = (idx / Math.max(uniqueDocs.length, 1)) * Math.PI * 0.8 + 0.3;
-      const x = (idx % 2 === 0 ? -1 : 1) * (3.8 + idx * 0.8);
-      const y = 1.2 - idx * 0.6;
-      const z = (idx % 2 === 0 ? 1 : -1) * 1.5;
+      const x = (idx % 2 === 0 ? -1 : 1) * (4.2 + idx * 0.9);
+      const y = 1.4 - idx * 0.7;
+      const z = (idx % 2 === 0 ? 1.4 : -1.4);
 
       const span = spans.find((s) => s.doc_title === docTitle);
       nodes.push({
@@ -129,20 +146,32 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
         status: "verified",
         position: new THREE.Vector3(x, y, z),
         targetPosition: new THREE.Vector3(x, y, z),
-        velocity: new THREE.Vector3(),
         score: span?.score ?? 0.95,
-        details: span?.text || "Source context span retrieved on CPU cross-encoder.",
+        details: span?.text || "Source context span retrieved on multi-threaded CPU cores.",
       });
     });
 
-    // Claim Nodes from synthetic claims
+    // Deterministic Entity Guard Arbiter Node
+    nodes.push({
+      id: "node_guard",
+      label: "Stage-1 Deterministic Entity Guard",
+      type: "guard",
+      status: "verified",
+      position: new THREE.Vector3(0, -0.4, 1.4),
+      targetPosition: new THREE.Vector3(0, -0.4, 1.4),
+      latencyMs: 0.42,
+      score: 1.0,
+      details: "Deterministic numerical regex & entity validation completed in 0.42ms (<1ms).",
+    });
+
+    // Synthetic & Verified Claims
     const claims: AtomicClaim[] = state?.synthetic_claims && state.synthetic_claims.length > 0
       ? state.synthetic_claims
       : [
           {
             claim_id: "c_001",
             text: "Arthur's Magazine was founded in 1844.",
-            cited_spans: ["doc_1"],
+            cited_spans: ["arthur_mag_s0"],
             guard_status: "PASSED",
             guard_reasons: [],
             nli_label: "ENTAILMENT",
@@ -155,7 +184,7 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
           {
             claim_id: "c_002",
             text: "First for Women was started in 1989.",
-            cited_spans: ["doc_2"],
+            cited_spans: ["first_women_s1"],
             guard_status: "PASSED",
             guard_reasons: [],
             nli_label: "ENTAILMENT",
@@ -168,9 +197,9 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
         ];
 
     claims.forEach((claim, idx) => {
-      const x = (idx === 0 ? -2.2 : idx === 1 ? 2.2 : 0) + (idx > 1 ? (idx - 1) * 2.5 : 0);
-      const y = -2.5 - (idx % 2) * 0.8;
-      const z = (idx % 2 === 0 ? 0.8 : -0.8);
+      const x = (idx === 0 ? -2.6 : idx === 1 ? 2.6 : 0) + (idx > 1 ? (idx - 1) * 3 : 0);
+      const y = -2.8 - (idx % 2) * 0.8;
+      const z = (idx % 2 === 0 ? 0.9 : -0.9);
 
       const status = claim.verification_status === "VERIFIED"
         ? "verified"
@@ -180,65 +209,53 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
 
       nodes.push({
         id: claim.claim_id,
-        label: `Claim: ${claim.text.slice(0, 32)}...`,
+        label: `Claim ${claim.claim_id}: ${claim.text.slice(0, 36)}...`,
         type: "claim",
         status,
         position: new THREE.Vector3(x, y, z),
         targetPosition: new THREE.Vector3(x, y, z),
-        velocity: new THREE.Vector3(),
         score: claim.nli_entailment_prob,
         latencyMs: claim.nli_inference_latency_ms,
         details: `${claim.text} (Guard: ${claim.guard_status}, τ=${claim.nli_entailment_prob.toFixed(3)})`,
       });
     });
 
-    // Deterministic Entity Guard Arbiter Node
-    nodes.push({
-      id: "node_guard",
-      label: "Stage-1 Entity Guard (<1ms)",
-      type: "guard",
-      status: "verified",
-      position: new THREE.Vector3(0, -0.6, 1.2),
-      targetPosition: new THREE.Vector3(0, -0.6, 1.2),
-      velocity: new THREE.Vector3(),
-      latencyMs: 0.42,
-      score: 1.0,
-      details: "Deterministic numerical regex & entity validation completed in 0.42ms",
-    });
-
-    // Create 3D Meshes for Nodes
+    // 4. Create Physically Based Meshes for Nodes
     nodes.forEach((node) => {
       let geometry: THREE.BufferGeometry;
-      let color = 0x10b981; // Emerald
+      let colorHex = 0x10b981;
 
       if (node.type === "query") {
-        geometry = new THREE.OctahedronGeometry(0.75, 0);
-        color = 0x38bdf8; // Sky / Cyan
+        geometry = new THREE.OctahedronGeometry(0.85, 0);
+        colorHex = 0x38bdf8; // Sky
       } else if (node.type === "document") {
-        geometry = new THREE.DodecahedronGeometry(0.65, 0);
-        color = 0x06b6d4; // Cyan
+        geometry = new THREE.DodecahedronGeometry(0.72, 0);
+        colorHex = 0x06b6d4; // Cyan
       } else if (node.type === "guard") {
-        geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-        color = 0x8b5cf6; // Purple / Guard
+        geometry = new THREE.BoxGeometry(0.85, 0.85, 0.85);
+        colorHex = 0xa855f7; // Purple
       } else {
-        // Claim
-        geometry = new THREE.IcosahedronGeometry(0.55, 1);
+        geometry = new THREE.IcosahedronGeometry(0.65, 1);
         if (node.status === "verified") {
-          color = 0x10b981; // Emerald
+          colorHex = 0x10b981; // Emerald
         } else if (node.status === "refuted") {
-          color = 0xef4444; // Crimson
+          colorHex = 0xef4444; // Crimson
         } else {
-          color = 0xf59e0b; // Amber
+          colorHex = 0xf59e0b; // Amber
         }
       }
 
-      const material = new THREE.MeshStandardMaterial({
-        color,
-        roughness: 0.2,
-        metalness: 0.8,
-        emissive: color,
-        emissiveIntensity: 0.35,
-        wireframe: false,
+      // ThreeUI style MeshPhysicalMaterial
+      const material = new THREE.MeshPhysicalMaterial({
+        color: colorHex,
+        emissive: colorHex,
+        emissiveIntensity: 0.45,
+        roughness: 0.15,
+        metalness: 0.85,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1,
+        transparent: true,
+        opacity: 0.95,
       });
 
       const mesh = new THREE.Mesh(geometry, material);
@@ -247,39 +264,37 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
       graphGroup.add(mesh);
       meshes.push(mesh);
 
-      // Wireframe overlay shell for tech aesthetic
+      // Outer Wireframe Halo
       const wireMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         wireframe: true,
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.14,
       });
       const wireMesh = new THREE.Mesh(geometry, wireMat);
-      wireMesh.scale.set(1.15, 1.15, 1.15);
+      wireMesh.scale.set(1.18, 1.18, 1.18);
       mesh.add(wireMesh);
 
-      // Radial Pulse Shockwave for verified nodes
+      // Verified radial pulse waves
       if (node.status === "verified" || node.type === "guard") {
-        const pulseGeo = new THREE.RingGeometry(0.7, 0.8, 32);
+        const pulseGeo = new THREE.RingGeometry(0.75, 0.88, 32);
         const pulseMat = new THREE.MeshBasicMaterial({
-          color,
+          color: colorHex,
           side: THREE.DoubleSide,
           transparent: true,
-          opacity: 0.4,
+          opacity: 0.45,
         });
         const pulse = new THREE.Mesh(pulseGeo, pulseMat);
         pulse.position.copy(node.position);
         pulse.rotation.x = Math.PI / 2;
-        pulse.userData = { initialScale: 1.0, maxScale: 2.8, speed: 0.015 + Math.random() * 0.01 };
+        pulse.userData = { maxScale: 2.9, speed: 0.016 + Math.random() * 0.008 };
         graphGroup.add(pulse);
         pulseMeshes.push(pulse);
       }
     });
 
-    // 2. Spring-Tensioned Edges Connecting Nodes
+    // 5. Spring-Tensioned Dynamic Edges
     const edges: Array<{ from: NodeData; to: NodeData }> = [];
-
-    // Query connects to all docs
     const queryNode = nodes.find((n) => n.type === "query");
     const docNodes = nodes.filter((n) => n.type === "document");
     const guardNode = nodes.find((n) => n.type === "guard");
@@ -288,13 +303,11 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
     if (queryNode) {
       docNodes.forEach((doc) => edges.push({ from: queryNode, to: doc }));
     }
-
     if (guardNode) {
       docNodes.forEach((doc) => edges.push({ from: doc, to: guardNode }));
       claimNodes.forEach((claim) => edges.push({ from: guardNode, to: claim }));
     }
 
-    // Dynamic Line Segments
     const linePositions = new Float32Array(edges.length * 6);
     const lineColors = new Float32Array(edges.length * 6);
 
@@ -307,7 +320,6 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
       linePositions[i + 4] = edge.to.position.y;
       linePositions[i + 5] = edge.to.position.z;
 
-      // Color gradient along edge
       const c1 = edge.from.type === "query" ? new THREE.Color(0x38bdf8) : new THREE.Color(0x06b6d4);
       const c2 = edge.to.status === "verified" ? new THREE.Color(0x10b981) : new THREE.Color(0xf59e0b);
 
@@ -326,26 +338,24 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
     const edgeMaterial = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.45,
-      linewidth: 1.5,
+      opacity: 0.42,
     });
-
     const edgeLines = new THREE.LineSegments(edgeGeometry, edgeMaterial);
     graphGroup.add(edgeLines);
 
-    // 3. Ambient Particle Spark Cloud (Obsidian Field)
-    const particleCount = 180;
+    // 6. Ambient Particle Spark Cloud
+    const particleCount = 240;
     const particleGeometry = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     const particleColors = new Float32Array(particleCount * 3);
 
     for (let i = 0; i < particleCount; i++) {
       const idx = i * 3;
-      particlePositions[idx] = (Math.random() - 0.5) * 35;
-      particlePositions[idx + 1] = (Math.random() - 0.5) * 25;
-      particlePositions[idx + 2] = (Math.random() - 0.5) * 25;
+      particlePositions[idx] = (Math.random() - 0.5) * 40;
+      particlePositions[idx + 1] = (Math.random() - 0.5) * 28;
+      particlePositions[idx + 2] = (Math.random() - 0.5) * 30;
 
-      const pColor = Math.random() > 0.5 ? new THREE.Color(0x10b981) : new THREE.Color(0x06b6d4);
+      const pColor = Math.random() > 0.6 ? new THREE.Color(0x10b981) : new THREE.Color(0x06b6d4);
       particleColors[idx] = pColor.r;
       particleColors[idx + 1] = pColor.g;
       particleColors[idx + 2] = pColor.b;
@@ -355,18 +365,16 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
     particleGeometry.setAttribute("color", new THREE.BufferAttribute(particleColors, 3));
 
     const particleMaterial = new THREE.PointsMaterial({
-      size: 0.12,
+      size: 0.14,
       vertexColors: true,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.6,
       blending: THREE.AdditiveBlending,
     });
-
     const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particleSystem);
 
-    // 4. Mouse Inertia Parallax & Raycasting
-    const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+    // 7. Mouse Interactivity & Raycasting
     const raycaster = new THREE.Raycaster();
     const mouseVector = new THREE.Vector2();
 
@@ -374,9 +382,6 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
       const rect = container.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
-      mouse.targetX = x;
-      mouse.targetY = y;
-
       mouseVector.x = x;
       mouseVector.y = y;
 
@@ -386,33 +391,47 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
       });
     };
 
-    container.addEventListener("mousemove", onMouseMove);
+    const onClick = () => {
+      raycaster.setFromCamera(mouseVector, camera);
+      const intersects = raycaster.intersectObjects(meshes);
+      if (intersects.length > 0) {
+        const hit = intersects[0].object as THREE.Mesh;
+        const data = hit.userData.nodeData as NodeData | undefined;
+        if (data && data.type === "claim" && onSelectClaim) {
+          onSelectClaim(data.id);
+        }
+      }
+    };
 
-    // 5. Animation Loop
+    container.addEventListener("mousemove", onMouseMove);
+    container.addEventListener("click", onClick);
+
+    // 8. Animation Loop
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Mouse Inertia Damping
-      mouse.x += (mouse.targetX - mouse.x) * 0.05;
-      mouse.y += (mouse.targetY - mouse.y) * 0.05;
+      controls.update();
 
-      // Parallax Tilt on Group
-      graphGroup.rotation.y = mouse.x * 0.45 + Math.sin(time * 0.2) * 0.05;
-      graphGroup.rotation.x = -mouse.y * 0.35 + Math.cos(time * 0.25) * 0.04;
-
-      // Floating gentle bobbing on individual nodes
+      // Subtle dynamic bobbing on individual node meshes
       meshes.forEach((mesh, index) => {
-        mesh.rotation.x += 0.006 * ((index % 3) + 1);
-        mesh.rotation.y += 0.008 * ((index % 2) + 1);
-        mesh.position.y += Math.sin(time * 1.5 + index) * 0.002;
+        mesh.rotation.x += 0.005 * ((index % 3) + 1);
+        mesh.rotation.y += 0.007 * ((index % 2) + 1);
+        mesh.position.y += Math.sin(time * 1.6 + index) * 0.0018;
+
+        const node = mesh.userData.nodeData as NodeData | undefined;
+        const isExternalSelected = node && selectedClaimId && node.id === selectedClaimId;
+
+        if (isExternalSelected) {
+          mesh.scale.lerp(new THREE.Vector3(1.35, 1.35, 1.35), 0.15);
+        }
       });
 
-      // Animate Radial Pulse Waves
+      // Animate Radial Pulse Shockwaves
       pulseMeshes.forEach((pulse) => {
         const u = pulse.userData;
         pulse.scale.x += u.speed;
@@ -427,7 +446,7 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
       });
 
       // Slowly rotate particle field
-      particleSystem.rotation.y = time * 0.02;
+      particleSystem.rotation.y = time * 0.018;
 
       // Raycasting for interactive hover
       raycaster.setFromCamera(mouseVector, camera);
@@ -438,12 +457,15 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
         const nodeData = topHit.userData.nodeData as NodeData | undefined;
         if (nodeData) {
           setHoveredNode(nodeData);
-          topHit.scale.lerp(new THREE.Vector3(1.25, 1.25, 1.25), 0.15);
+          topHit.scale.lerp(new THREE.Vector3(1.3, 1.3, 1.3), 0.15);
         }
       } else {
         setHoveredNode(null);
         meshes.forEach((m) => {
-          m.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+          const node = m.userData.nodeData as NodeData | undefined;
+          if (!selectedClaimId || node?.id !== selectedClaimId) {
+            m.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+          }
         });
       }
 
@@ -452,7 +474,7 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
 
     animate();
 
-    // 6. Responsive Resize Observer
+    // 9. Resize Observer
     const handleResize = () => {
       if (!container || !renderer || !camera) return;
       width = container.clientWidth;
@@ -465,11 +487,12 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
 
-    // Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
       container.removeEventListener("mousemove", onMouseMove);
+      container.removeEventListener("click", onClick);
       resizeObserver.disconnect();
+      controls.dispose();
       meshes.forEach((m) => {
         m.geometry.dispose();
         if (Array.isArray(m.material)) m.material.forEach((mat) => mat.dispose());
@@ -485,25 +508,28 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
       particleMaterial.dispose();
       renderer.dispose();
     };
-  }, [state]);
+  }, [state, selectedClaimId, onSelectClaim]);
 
   return (
     <div
       ref={mountRef}
-      className={`relative w-full h-[360px] md:h-[440px] rounded-2xl overflow-hidden border border-emerald-500/20 bg-[#030712]/90 backdrop-blur-xl shadow-2xl ${className}`}
+      className={`relative w-full h-[460px] md:h-[540px] rounded-3xl overflow-hidden glass-surface shadow-2xl ${className}`}
     >
-      {/* 3D Canvas */}
-      <canvas ref={canvasRef} className="w-full h-full block cursor-crosshair" />
+      {/* Three.js Canvas */}
+      <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
 
-      {/* Epistemic Lattice Canvas HUD Badge */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-emerald-500/30 backdrop-blur-md">
+      {/* Floating Status Glass Badge */}
+      <div className="absolute top-5 left-6 z-10 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-xl">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-        <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-300 font-semibold">
-          Epistemic Verification Lattice (WebGL)
+        <span className="text-xs font-semibold text-slate-200 tracking-wide">
+          Epistemic Lattice Stage
+        </span>
+        <span className="text-[11px] text-slate-400 font-mono">
+          &middot; WebGL Physical Shaders
         </span>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-black/60 border border-slate-800 backdrop-blur-md text-[11px] font-mono text-slate-400">
+      <div className="absolute top-5 right-6 z-10 hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-xl text-xs text-slate-300">
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-sky-400" /> Query
         </span>
@@ -514,42 +540,45 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
           <span className="w-2 h-2 rounded-full bg-purple-400" /> Guard
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" /> Claim
+          <span className="w-2 h-2 rounded-full bg-emerald-400" /> Verified Claim
         </span>
       </div>
 
       {/* Interactive Hover HUD Card */}
       {hoveredNode && (
         <div
-          className="absolute pointer-events-none z-30 w-72 rounded-xl p-3.5 bg-black/90 border border-emerald-500/50 shadow-2xl backdrop-blur-xl transition-transform duration-75 text-xs font-sans"
+          className="absolute pointer-events-none z-30 w-80 rounded-2xl p-4 bg-black/85 border border-white/15 shadow-2xl backdrop-blur-2xl transition-transform duration-75 text-xs font-sans"
           style={{
-            left: Math.min(tooltipPos.x + 16, (mountRef.current?.clientWidth || 600) - 300),
-            top: Math.max(tooltipPos.y - 40, 16),
+            left: Math.min(tooltipPos.x + 16, (mountRef.current?.clientWidth || 800) - 340),
+            top: Math.max(tooltipPos.y - 50, 20),
           }}
         >
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-400 font-bold">
+          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
+            <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
               {hoveredNode.type.toUpperCase()} NODE
             </span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
+              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                 hoveredNode.status === "verified"
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                   : hoveredNode.status === "refuted"
-                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
-                  : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                  : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
               }`}
             >
               {hoveredNode.status}
             </span>
           </div>
-          <div className="text-slate-200 font-medium leading-relaxed mb-2">
+
+          <div className="text-slate-100 font-semibold leading-snug mb-2">
             {hoveredNode.label}
           </div>
-          <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3 mb-2 font-mono">
+
+          <p className="text-slate-300 text-[11px] leading-relaxed line-clamp-3 mb-3">
             {hoveredNode.details}
           </p>
-          <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px] font-mono text-slate-400">
+
+          <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[11px] text-slate-400 font-mono">
             {hoveredNode.score !== undefined && (
               <span>Entailment τ: {(hoveredNode.score * 100).toFixed(1)}%</span>
             )}
@@ -560,9 +589,9 @@ export const EpistemicLatticeCanvas: React.FC<EpistemicLatticeCanvasProps> = ({
         </div>
       )}
 
-      {/* Bottom Hint */}
-      <div className="absolute bottom-3 left-4 z-10 text-[10px] font-mono text-slate-400/80">
-        Mouse parallax active &bull; Hover nodes to inspect epistemic grounding
+      {/* Orbit Controls Hint Footer */}
+      <div className="absolute bottom-4 left-6 z-10 text-xs text-slate-400">
+        Drag to rotate epistemic lattice &middot; Click claim node to focus attribution
       </div>
     </div>
   );
