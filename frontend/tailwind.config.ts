@@ -51,11 +51,22 @@ const config: Config = {
       animation: {
         "pulse-subtle": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "scanline": "scanline 8s linear infinite",
+        "border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
+        "grid": "grid 25s linear infinite",
       },
       keyframes: {
         scanline: {
           "0%": { transform: "translateY(-100%)" },
           "100%": { transform: "translateY(1000%)" },
+        },
+        "border-beam": {
+          "100%": {
+            offsetDistance: "100%",
+          },
+        },
+        grid: {
+          "0%": { transform: "translateY(0)" },
+          "100%": { transform: "translateY(60px)" },
         },
       },
     },

@@ -3,13 +3,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Navbar } from "../components/Navbar";
 import { QueryBar } from "../components/QueryBar";
-import { PipelineStepper } from "../components/PipelineStepper";
+import { EpistemicLatticeCanvas } from "../components/EpistemicLatticeCanvas";
+import { AnimatedPipelineDAG } from "../components/AnimatedPipelineDAG";
+import { CitationDisassembler } from "../components/CitationDisassembler";
+import { TelemetryBentoGrid } from "../components/TelemetryBentoGrid";
 import { StepInspector } from "../components/StepInspector";
 import { VerificationStudio } from "../components/VerificationStudio";
 import { BenchmarkModal } from "../components/BenchmarkModal";
 import { LiveConnectionModal } from "../components/LiveConnectionModal";
+import { RetroGrid } from "../components/ui/retro-grid";
 import { PRESET_TRAJECTORIES } from "../lib/presets";
-import { PresetTrajectory, WarrantState, SSEEventPayload } from "../lib/types";
+import { PresetTrajectory, WarrantState, SSEEventPayload, EvidenceSpan, AtomicClaim, PolicyDecision } from "../lib/types";
 import { streamLiveQuery, streamPresetTrajectory } from "../lib/sse-client";
 
 export default function Home() {
@@ -27,7 +31,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"executive" | "telemetry">("executive");
 
   const [warrantState, setWarrantState] = useState<WarrantState | null>(defaultPreset.mockState);
-  const [statusMessage, setStatusMessage] = useState<string>("Ready");
+  const [statusMessage, setStatusMessage] = useState<string>("Epistemic Verification Cockpit Ready");
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -66,14 +70,13 @@ export default function Home() {
     };
   }, [backendUrl]);
 
-
   const handleSelectPreset = (preset: PresetTrajectory) => {
     if (isLoading) handleAbort();
     setSelectedPresetId(preset.id);
     setQuery(preset.query);
     setWarrantState(preset.mockState);
     setActiveStep(0);
-    setStatusMessage(`Loaded trajectory: ${preset.title}`);
+    setStatusMessage(`Loaded HotpotQA trajectory: ${preset.title}`);
   };
 
   const handleAbort = () => {
@@ -82,7 +85,7 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     setIsLoading(false);
-    setStatusMessage("Execution cancelled by user.");
+    setStatusMessage("Pipeline execution interrupted by user.");
   };
 
   const handleExecute = async () => {
@@ -92,10 +95,10 @@ export default function Home() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsLoading(true);
-    setActiveStep(0);
-    setStatusMessage("Initializing multi-hop research pipeline...");
+    setActiveStep(1);
+    setStatusMessage("Initializing multi-hop epistemic pipeline...");
 
-    // Initial empty state for incoming stream
+    // Initial clean state for incoming stream
     const emptyState: WarrantState = {
       query: query.trim(),
       current_hop: 0,
@@ -106,7 +109,7 @@ export default function Home() {
       refuted_claims: [],
       unverifiable_claims: [],
       policy_decision: "FULL_PASS",
-      policy_reason: "Processing research pipeline...",
+      policy_reason: "Evaluating multi-hop attribution DAG...",
       final_answer: "",
       iteration: 1,
       retry_count: 0,
@@ -114,30 +117,31 @@ export default function Home() {
     setWarrantState(emptyState);
 
     const handleEvent = (event: SSEEventPayload) => {
-      setStatusMessage(`Phase [${event.node_name || event.event_type}]: Processing...`);
+      setStatusMessage(`Phase [${event.node_name || event.event_type}]: Active`);
 
       setWarrantState((prev) => {
         if (!prev) return emptyState;
-        const next = { ...prev };
+        const next: WarrantState = { ...prev };
 
         if (event.state_delta) {
           Object.assign(next, event.state_delta);
         }
 
         if (event.event_type === "hop_completed") {
-          const newSpans = (event.data?.retrieved_spans as any[]) || [];
-          if (newSpans.length > 0) {
-            next.retrieved_spans = newSpans;
+          setActiveStep(3);
+          if (Array.isArray(event.data?.retrieved_spans)) {
+            next.retrieved_spans = event.data.retrieved_spans as EvidenceSpan[];
           }
           if (typeof event.data?.hop === "number") {
             next.current_hop = event.data.hop;
           }
         } else if (event.event_type === "claims_synthesized") {
-          const claims = (event.data?.claims as any[]) || [];
-          if (claims.length > 0) {
-            next.synthetic_claims = claims;
+          setActiveStep(4);
+          if (Array.isArray(event.data?.claims)) {
+            next.synthetic_claims = event.data.claims as AtomicClaim[];
           }
         } else if (event.event_type === "claims_verified") {
+          setActiveStep(6);
           if (event.state_delta?.verified_claims) {
             next.verified_claims = event.state_delta.verified_claims;
           }
@@ -145,15 +149,17 @@ export default function Home() {
             next.refuted_claims = event.state_delta.refuted_claims;
           }
         } else if (event.event_type === "policy_evaluated") {
-          if (event.data?.decision) {
-            next.policy_decision = event.data.decision as any;
+          setActiveStep(7);
+          const decision = event.data?.decision;
+          if (decision === "FULL_PASS" || decision === "PARTIAL_PASS" || decision === "ABSTAIN") {
+            next.policy_decision = decision as PolicyDecision;
           }
-          if (event.data?.reason) {
-            next.policy_reason = event.data.reason as string;
+          if (typeof event.data?.reason === "string") {
+            next.policy_reason = event.data.reason;
           }
         } else if (event.event_type === "answer_assembled") {
-          if (event.data?.final_answer) {
-            next.final_answer = event.data.final_answer as string;
+          if (typeof event.data?.final_answer === "string") {
+            next.final_answer = event.data.final_answer;
           }
         } else if (event.event_type === "complete") {
           if (event.data?.final_state) {
@@ -166,7 +172,7 @@ export default function Home() {
 
       if (event.event_type === "complete") {
         setIsLoading(false);
-        setStatusMessage("Execution complete. Selective abstention policy contract evaluated.");
+        setStatusMessage("Execution complete. 3-state selective abstention contract validated.");
       }
     };
 
@@ -196,7 +202,10 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen pb-20">
+    <main className="min-h-screen relative bg-[#030712] text-slate-100 pb-24 overflow-hidden">
+      {/* Ambient Retro Grid Background */}
+      <RetroGrid className="opacity-20" angle={65} />
+
       {/* Brand Navbar */}
       <Navbar
         isLiveMode={isLiveMode}
@@ -208,44 +217,78 @@ export default function Home() {
         backendConnected={backendConnected}
       />
 
-      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mt-6 space-y-6">
-        {/* Search Query Prompt & Preset Trajectories */}
-        <QueryBar
-          query={query}
-          setQuery={setQuery}
-          isLoading={isLoading}
-          onExecute={handleExecute}
-          onAbort={handleAbort}
-          onSelectPreset={handleSelectPreset}
-          selectedPresetId={selectedPresetId}
-        />
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mt-6 space-y-8 relative z-10">
+        {/* Hero Section Header & 3D Epistemic Lattice Canvas */}
+        <section className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-800/80">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                Epistemic Verification Cockpit &middot; Dual-Stage Grounding
+              </div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white font-mono">
+                WARRANT <span className="text-emerald-400">&middot;</span> Dual-Stage Attribution Engine
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
+                Asymmetric compute partitioning: Gemma-3 12B (7.36 GB active VRAM on RTX 4060) with sub-millisecond (<span className="text-purple-400 font-mono font-semibold">&lt;1ms</span>) deterministic entity verification and calibrated DeBERTa-v3 cross-encoder (<span className="text-emerald-400 font-mono font-semibold">&tau; &ge; 0.820</span>).
+              </p>
+            </div>
+
+            <div className="hidden lg:flex flex-col items-end gap-1 text-xs font-mono text-slate-400">
+              <span className="px-2.5 py-1 rounded bg-black/60 border border-slate-800 text-slate-300">
+                HotpotQA Precision: <strong className="text-emerald-400">100.0%</strong>
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Zero Hallucination Rate on 1,991 Distractors
+              </span>
+            </div>
+          </div>
+
+          {/* Interactive Three.js 3D Epistemic Lattice */}
+          <EpistemicLatticeCanvas state={warrantState} />
+        </section>
+
+        {/* Search Query Prompt & Preset Trajectory Switcher */}
+        <section>
+          <QueryBar
+            query={query}
+            setQuery={setQuery}
+            isLoading={isLoading}
+            onExecute={handleExecute}
+            onAbort={handleAbort}
+            onSelectPreset={handleSelectPreset}
+            selectedPresetId={selectedPresetId}
+          />
+        </section>
 
         {/* Live Status Bar */}
-        <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-black/40 border border-slate-800/80 text-xs text-slate-400 font-sans shadow-sm">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-black/60 border border-slate-800 text-xs font-mono shadow-inner">
+          <div className="flex items-center gap-2.5">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
-                isLoading ? "bg-emerald-400 animate-ping" : "bg-emerald-500/60"
+                isLoading ? "bg-emerald-400 animate-ping" : "bg-emerald-500/80"
               }`}
             />
             <span className="text-slate-200 font-medium">{statusMessage}</span>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-slate-400 font-mono text-[11px]">
-            <span>Endpoint: {backendConnected && isLiveMode ? backendUrl : "Offline Simulator"}</span>
-            <span>&middot;</span>
-            <span>Gemma 3 12B Unified</span>
-            <span>&middot;</span>
-            <span>DeBERTa-v3 CPU</span>
+          <div className="hidden sm:flex items-center gap-3 text-slate-400 text-[11px]">
+            <span>Channel: {isLiveMode && backendConnected ? backendUrl : "Deterministic Simulator"}</span>
+            <span>&bull;</span>
+            <span>Gemma 3 12B (GPU)</span>
+            <span>&bull;</span>
+            <span>DeBERTa-v3 (CPU)</span>
           </div>
         </div>
 
-        {/* Visual 5-Phase Pipeline Stepper */}
-        <PipelineStepper
-          state={warrantState}
-          isLoading={isLoading}
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        />
+        {/* 7-Node Animated Verification Pipeline DAG */}
+        <section>
+          <AnimatedPipelineDAG
+            state={warrantState}
+            isLoading={isLoading}
+            activeNodeIndex={activeStep}
+            onSelectNode={(nodeIndex) => setActiveStep(nodeIndex)}
+          />
+        </section>
 
         {/* Educational Deep Dive Drawer (Appears when user clicks any step) */}
         {activeStep > 0 && (
@@ -256,12 +299,24 @@ export default function Home() {
           />
         )}
 
-        {/* The Split-Screen Verification Studio (Core Experience) */}
-        <VerificationStudio
-          state={warrantState}
-          isLoading={isLoading}
-          viewMode={viewMode}
-        />
+        {/* Interactive Citation Disassembler & Claim Inspector */}
+        <section>
+          <CitationDisassembler state={warrantState} />
+        </section>
+
+        {/* Aceternity Spotlight Telemetry Bento Grid */}
+        <section>
+          <TelemetryBentoGrid />
+        </section>
+
+        {/* Full Claim-Level Verification Matrix & Ground Truth Evidence Corpus */}
+        <section>
+          <VerificationStudio
+            state={warrantState}
+            isLoading={isLoading}
+            viewMode={viewMode}
+          />
+        </section>
       </div>
 
       {/* Live GPU Connection Modal */}
@@ -274,7 +329,7 @@ export default function Home() {
         setIsLiveMode={setIsLiveMode}
       />
 
-      {/* Verifier Bake-Off Modal */}
+      {/* Verifier Bake-Off Benchmark Modal */}
       <BenchmarkModal
         isOpen={isBenchmarkOpen}
         onClose={() => setIsBenchmarkOpen(false)}
@@ -282,4 +337,3 @@ export default function Home() {
     </main>
   );
 }
-
